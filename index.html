@@ -1,343 +1,200 @@
 
+
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#101827">
-
-  <title>Crypto Reality | Premium Analytics</title>
-
-  <meta name="description" content="Crypto Reality - منصة لتحليل ومراقبة أسواق العملات الرقمية.">
+  <meta name="description" content="Crypto Reality - Cryptocurrency market data and analytics">
+  <title>Crypto Reality | Markets</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css">
-
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
 
-<div class="app">
-
-  <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
-
-    <a href="#" class="brand">
-      <span class="brand-logo">CR</span>
+    <a class="brand" href="#dashboard">
+      <span class="brand-mark">CR</span>
       <span class="brand-name">CRYPTO <b>REALITY</b></span>
     </a>
 
-    <div class="side-label">القائمة الرئيسية</div>
-
-    <nav class="side-nav">
-      <a href="#dashboard" class="nav-item active">
-        <span>◫</span> لوحة المعلومات
-      </a>
-
-      <a href="#markets" class="nav-item">
-        <span>◈</span> الأسواق
-      </a>
-
-      <a href="#chart-section" class="nav-item">
-        <span>⌁</span> الرسوم البيانية
-      </a>
-
-      <a href="#analysis" class="nav-item">
-        <span>◎</span> التحليل الذكي
-      </a>
-    </nav>
-
-    <div class="side-label second-label">المنصة</div>
-
-    <nav class="side-nav">
-      <a href="#watchlist" class="nav-item">
-        <span>☆</span> قائمة المراقبة
-      </a>
-      <a href="#about" class="nav-item">
-        <span>ⓘ</span> حول المنصة
-      </a>
+    <div class="nav-label">MENU</div>
+    <nav class="navigation">
+      <a class="nav-item active" href="#dashboard"><span>▦</span> Dashboard</a>
+      <a class="nav-item" href="#markets"><span>▤</span> Markets</a>
+      <a class="nav-item" href="#chart-section"><span>⌁</span> Bitcoin Chart</a>
+      <a class="nav-item" href="#watchlist"><span>☆</span> Watchlist</a>
     </nav>
 
     <div class="sidebar-bottom">
-      <div class="status-indicator"></div>
-      <span>Market data connection</span>
-      <small id="connection">جاري الاتصال...</small>
+      <div class="connection-box">
+        <span class="connection-dot" id="connectionDot"></span>
+        <div>
+          <strong>Data Connection</strong>
+          <small id="connection">Connecting...</small>
+        </div>
+      </div>
+      <a class="nav-item" href="#about"><span>ⓘ</span> About</a>
     </div>
-
   </aside>
 
-  <!-- Main -->
-  <main class="main">
-
+  <main class="main-content">
     <header class="topbar">
-
-      <button class="menu-btn" id="menuBtn">☰</button>
-
-      <div class="breadcrumb">
-        <span>Crypto Reality</span>
-        <span class="breadcrumb-separator">/</span>
-        <b>لوحة المعلومات</b>
+      <div class="topbar-left">
+        <button class="menu-button" id="menuBtn" aria-label="Open menu">☰</button>
+        <div>
+          <div class="eyebrow">MARKET OVERVIEW</div>
+          <h1>Dashboard</h1>
+        </div>
       </div>
 
       <div class="topbar-actions">
-        <div class="live-status">
-          <span></span>
-          LIVE MARKET
-        </div>
-
-        <button class="icon-btn" id="refreshBtn" title="تحديث البيانات">↻</button>
-
-        <div class="profile">CR</div>
+        <span class="live-status"><i></i> LIVE DATA</span>
+        <button class="button button-primary" id="refreshBtn">↻ Refresh</button>
       </div>
-
     </header>
 
-    <div class="content" id="dashboard">
-
-      <!-- Welcome -->
-      <section class="welcome">
+    <section id="dashboard">
+      <div class="welcome-row">
         <div>
-          <div class="eyebrow">MARKET INTELLIGENCE PLATFORM</div>
-          <h1>اكتشف ما وراء <span>السوق.</span></h1>
-          <p>بيانات واضحة. رؤية أعمق. قرارات أكثر وعياً.</p>
+          <h2>Market Overview</h2>
+          <p>Track cryptocurrency prices and market activity.</p>
         </div>
+        <span class="date-display" id="currentDate">--</span>
+      </div>
 
-        <div class="welcome-date" id="currentDate"></div>
-      </section>
-
-      <!-- Statistics -->
-      <section class="stats-grid">
-
-        <article class="stat-card dark-card">
-          <div class="stat-top">
-            <span>القيمة السوقية العالمية</span>
-            <span class="stat-icon">◈</span>
-          </div>
-          <div class="stat-value" id="marketCap">--</div>
-          <div class="stat-bottom">
-            <span>GLOBAL MARKET CAP</span>
-            <span id="marketCapChange">--</span>
-          </div>
+      <div class="stats-grid">
+        <article class="stat-card">
+          <div class="stat-heading">Total Market Cap <span>◈</span></div>
+          <strong id="marketCap">--</strong>
+          <small id="marketCapChange">--</small>
         </article>
 
-        <article class="stat-card light-card">
-          <div class="stat-top">
-            <span>حجم التداول 24 ساعة</span>
-            <span class="stat-icon">⌁</span>
-          </div>
-          <div class="stat-value" id="volume">--</div>
-          <div class="stat-bottom">
-            <span>24H VOLUME</span>
-            <span class="neutral">MARKET ACTIVITY</span>
-          </div>
+        <article class="stat-card">
+          <div class="stat-heading">24h Trading Volume <span>⇄</span></div>
+          <strong id="volume">--</strong>
+          <small>Across tracked markets</small>
         </article>
 
-        <article class="stat-card light-card">
-          <div class="stat-top">
-            <span>هيمنة البيتكوين</span>
-            <span class="stat-icon">₿</span>
-          </div>
-          <div class="stat-value" id="btcDominance">--</div>
-          <div class="stat-bottom">
-            <span>BTC DOMINANCE</span>
-            <span class="neutral">MARKET SHARE</span>
-          </div>
+        <article class="stat-card">
+          <div class="stat-heading">BTC Dominance <span>₿</span></div>
+          <strong id="btcDominance">--</strong>
+          <small>Bitcoin market share</small>
         </article>
 
-        <article class="stat-card dark-card">
-          <div class="stat-top">
-            <span>عدد العملات المتابعة</span>
-            <span class="stat-icon">◎</span>
-          </div>
-          <div class="stat-value" id="coinCount">--</div>
-          <div class="stat-bottom">
-            <span>TRACKED ASSETS</span>
-            <span class="neutral">TOP 50</span>
-          </div>
+        <article class="stat-card">
+          <div class="stat-heading">Tracked Assets <span>◫</span></div>
+          <strong id="coinCount">--</strong>
+          <small>Assets in this market list</small>
         </article>
+      </div>
+    </section>
 
-      </section>
-
-      <!-- Chart -->
-      <section class="chart-card" id="chart-section">
-
-        <div class="section-header">
-          <div>
-            <div class="eyebrow">MARKET PERFORMANCE</div>
-            <h2>أداء Bitcoin</h2>
-            <p class="muted">تحركات السعر خلال آخر 7 أيام</p>
-          </div>
-
-          <div class="chart-price">
-            <strong id="btcPrice">--</strong>
-            <span id="btcChange">--</span>
-          </div>
+    <section class="content-section" id="chart-section">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">PRICE HISTORY</div>
+          <h2>Bitcoin</h2>
         </div>
+        <div class="btc-summary">
+          <strong id="btcPrice">--</strong>
+          <span id="btcChange">--</span>
+        </div>
+      </div>
 
+      <div class="panel chart-panel">
+        <div class="panel-heading">
+          <span>BTC / USD</span>
+          <span class="period-label">7 DAYS</span>
+        </div>
         <div class="chart-container">
           <canvas id="btcChart"></canvas>
         </div>
+      </div>
+    </section>
 
-        <div class="chart-footer">
-          <span>DATA SOURCE: COINGECKO</span>
-          <span>7 DAY PRICE HISTORY</span>
+    <section class="content-section" id="markets">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">CRYPTOCURRENCY PRICES</div>
+          <h2>Markets</h2>
+          <p>Prices, market capitalization and daily performance.</p>
         </div>
+        <button class="button button-secondary" id="refreshMarket">↻ Refresh</button>
+      </div>
 
-      </section>
+      <div class="market-toolbar">
+        <input id="searchInput" type="search" placeholder="Search by name or symbol..." autocomplete="off">
+        <span id="marketCount">-- assets</span>
+      </div>
 
-      <!-- Market -->
-      <section class="market-section" id="markets">
+      <div class="table-wrap">
+        <table class="market-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Asset</th>
+              <th>Price</th>
+              <th>24h Change</th>
+              <th>Market Cap</th>
+              <th>Volume (24h)</th>
+              <th>Watch</th>
+            </tr>
+          </thead>
+          <tbody id="coinTable">
+            <tr><td colspan="7" class="table-message">Loading market data...</td></tr>
+          </tbody>
+        </table>
+      </div>
 
-        <div class="section-header market-heading">
-          <div>
-            <div class="eyebrow">CRYPTOCURRENCY MARKET</div>
-            <h2>الأسواق الرقمية</h2>
-            <p class="muted">تابع الأسعار والتغيرات وحجم التداول.</p>
-          </div>
+      <div class="table-footer">
+        <span id="status">Waiting for market data...</span>
+        <span>Data: CoinGecko</span>
+      </div>
+    </section>
 
-          <button class="outline-btn" id="refreshMarket">
-            ↻ تحديث السوق
-          </button>
+    <section class="content-section" id="watchlist">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">SAVED ASSETS</div>
+          <h2>Watchlist</h2>
+          <p>Your saved cryptocurrencies.</p>
         </div>
+      </div>
 
-        <div class="market-toolbar">
+      <div class="panel table-wrap">
+        <table class="market-table">
+          <thead>
+            <tr>
+              <th>Asset</th>
+              <th>Price</th>
+              <th>24h Change</th>
+              <th>Market Cap</th>
+              <th>Remove</th>
+            </tr>
+          </thead>
+          <tbody id="watchlistTable">
+            <tr><td colspan="5" class="table-message">Your watchlist is empty.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-          <div class="search-input">
-            <span>⌕</span>
-            <input id="searchInput" placeholder="ابحث عن عملة أو رمز..." type="search">
-          </div>
-
-          <div class="market-count" id="marketCount">50 عملة</div>
-
-        </div>
-
-        <div class="table-container">
-
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>الأصل الرقمي</th>
-                <th>السعر</th>
-                <th>التغير 24H</th>
-                <th>القيمة السوقية</th>
-                <th>حجم التداول</th>
-                <th>الحالة</th>
-              </tr>
-            </thead>
-
-            <tbody id="coinTable">
-              <tr>
-                <td colspan="7" class="loading">
-                  جاري تحميل بيانات السوق...
-                </td>
-              </tr>
-            </tbody>
-
-          </table>
-
-        </div>
-
-        <div class="table-footer">
-          <span id="status">بانتظار البيانات...</span>
-          <span>Powered by CoinGecko</span>
-        </div>
-
-      </section>
-
-      <!-- Analysis -->
-      <section class="analysis-section" id="analysis">
-
-        <div class="section-header">
-          <div>
-            <div class="eyebrow">DEEP MARKET INSIGHTS</div>
-            <h2>التحليل الذكي</h2>
-            <p class="muted">نظرة أعمق على العوامل المؤثرة في قيمة الأصول.</p>
-          </div>
-        </div>
-
-        <div class="insight-grid">
-
-          <article class="insight-card">
-            <div class="insight-icon blue-icon">◈</div>
-            <h3>تحليل القيمة</h3>
-            <p>دراسة القيمة السوقية ومقارنتها بمؤشرات المشروع.</p>
-            <span class="coming">قريباً</span>
-          </article>
-
-          <article class="insight-card">
-            <div class="insight-icon green-icon">⌁</div>
-            <h3>تحليل السيولة</h3>
-            <p>فهم عمق السوق والسيولة ومخاطر الانزلاق السعري.</p>
-            <span class="coming">قريباً</span>
-          </article>
-
-          <article class="insight-card">
-            <div class="insight-icon purple-icon">◎</div>
-            <h3>نشاط الحيتان</h3>
-            <p>متابعة تحركات المحافظ الكبيرة وتوزيع الملكية.</p>
-            <span class="coming">قريباً</span>
-          </article>
-
-          <article class="insight-card">
-            <div class="insight-icon orange-icon">⌖</div>
-            <h3>مخاطر السوق</h3>
-            <p>اكتشاف مؤشرات التقلب والمخاطر المرتفعة.</p>
-            <span class="coming">قريباً</span>
-          </article>
-
-        </div>
-
-      </section>
-
-      <!-- Watchlist -->
-      <section class="watchlist-section" id="watchlist">
-        <div class="section-header">
-          <div>
-            <div class="eyebrow">YOUR MARKET TRACKER</div>
-            <h2>قائمة المراقبة</h2>
-          </div>
-        </div>
-
-        <div class="watchlist-card">
-          <p>لم تضف أي عملات إلى قائمة المراقبة بعد.</p>
-          <span>ستتوفر إمكانية حفظ العملات في التحديث القادم.</span>
-        </div>
-      </section>
-
-      <!-- Footer -->
-      <footer id="about">
-        <div class="footer-brand">
-          <span class="brand-logo">CR</span>
-          CRYPTO REALITY
-        </div>
-
-        <p>See Beyond Price. Understand Reality.</p>
-
-        <small>
-          © 2026 Crypto Reality. Market data provided by CoinGecko.
-        </small>
-
-        <small class="disclaimer">
-          البيانات لأغراض المعلومات والتحليل فقط وليست توصية استثمارية.
-        </small>
-      </footer>
-
-    </div>
-
+    <footer id="about" class="footer">
+      <strong>CRYPTO REALITY</strong>
+      <span>Market data provided by CoinGecko.</span>
+      <p>Market information is provided for research purposes only and is not investment advice.</p>
+    </footer>
   </main>
 
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script src="script.js"></script>
-
+  <div class="toast" id="toast"></div>
+  <script src="script.js"></script>
 </body>
 </html>
 
