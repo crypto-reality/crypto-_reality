@@ -9,8 +9,11 @@ let coins = [];
 let btcChart = null;
 let isLoading = false;
 let lastChartUpdate = 0;
-
 let watchlist = [];
+
+const $ = id => document.getElementById(id);
+
+// WATCHLIST STORAGE
 
 try {
   watchlist = JSON.parse(
@@ -22,7 +25,7 @@ try {
   watchlist = [];
 }
 
-const $ = id => document.getElementById(id);
+// FORMATTING
 
 const money = value => {
   if (value == null || !Number.isFinite(Number(value))) return "--";
@@ -38,7 +41,7 @@ const price = value => {
 
   return "$" + Number(value).toLocaleString("en-US", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: value < 1 ? 8 : 2
+    maximumFractionDigits: Number(value) < 1 ? 8 : 2
   });
 };
 
@@ -51,8 +54,11 @@ const escapeHTML = value =>
     "'": "&#039;"
   })[char]);
 
+// NOTIFICATIONS
+
 function showToast(message) {
   const toast = $("toast");
+  if (!toast) return;
 
   toast.textContent = message;
   toast.classList.add("show");
@@ -66,20 +72,25 @@ function showToast(message) {
 
 // DATE
 
-$("currentDate").textContent =
-  new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
+if ($("currentDate")) {
+  $("currentDate").textContent =
+    new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
+}
 
 // CONNECTION STATUS
 
 function setConnection(status) {
-  $("connection").textContent = status;
+  if ($("connection")) {
+    $("connection").textContent = status;
+  }
 
   const dot = $("connectionDot");
+  if (!dot) return;
 
   dot.classList.remove("connected", "disconnected");
 
@@ -102,31 +113,46 @@ async function loadGlobalData() {
   const result = await response.json();
   const data = result.data;
 
-  $("marketCap").textContent =
-    money(data.total_market_cap?.usd);
+  if (!data) {
+    throw new Error("Invalid global market data");
+  }
 
-  $("volume").textContent =
-    money(data.total_volume?.usd);
+  if ($("marketCap")) {
+    $("marketCap").textContent =
+      money(data.total_market_cap?.usd);
+  }
 
-  $("btcDominance").textContent =
-    Number(data.market_cap_percentage?.btc || 0).toFixed(1) + "%";
+  if ($("volume")) {
+    $("volume").textContent =
+      money(data.total_volume?.usd);
+  }
+
+  if ($("btcDominance")) {
+    $("btcDominance").textContent =
+      Number(data.market_cap_percentage?.btc || 0).toFixed(1) + "%";
+  }
 
   const change = Number(
     data.market_cap_change_percentage_24h_usd || 0
   );
 
-  $("marketCapChange").textContent =
-    `${change >= 0 ? "+" : ""}${change.toFixed(2)}% (24h)`;
+  if ($("marketCapChange")) {
+    $("marketCapChange").textContent =
+      `${change >= 0 ? "+" : ""}${change.toFixed(2)}% (24h)`;
 
-  $("marketCapChange").className =
-    change >= 0 ? "positive" : "negative";
+    $("marketCapChange").className =
+      change >= 0 ? "positive" : "negative";
+  }
 }
 
 // MARKET TABLE
 
 function renderCoins(list) {
+  const table = $("coinTable");
+  if (!table) return;
+
   if (!list.length) {
-    $("coinTable").innerHTML = `
+    table.innerHTML = `
       <tr>
         <td colspan="7" class="table-message">
           No assets found.
@@ -134,11 +160,14 @@ function renderCoins(list) {
       </tr>
     `;
 
-    $("marketCount").textContent = "0 assets";
+    if ($("marketCount")) {
+      $("marketCount").textContent = "0 assets";
+    }
+
     return;
   }
 
-  $("coinTable").innerHTML = list.map(coin => {
+  table.innerHTML = list.map(coin => {
     const change = Number(
       coin.price_change_percentage_24h || 0
     );
@@ -193,45 +222,58 @@ function renderCoins(list) {
     `;
   }).join("");
 
-  $("marketCount").textContent = `${list.length} assets`;
+  if ($("marketCount")) {
+    $("marketCount").textContent = `${list.length} assets`;
+  }
 }
 
 // SEARCH
 
 function updateMarketDisplay() {
-  const query = $("searchInput").value
-    .trim()
-    .toLowerCase();
+  const search = $("searchInput");
+
+  const query = search
+    ? search.value.trim().toLowerCase()
+    : "";
 
   const filtered = coins.filter(coin =>
-    coin.name.toLowerCase().includes(query) ||
-    coin.symbol.toLowerCase().includes(query)
+    String(coin.name || "").toLowerCase().includes(query) ||
+    String(coin.symbol || "").toLowerCase().includes(query)
   );
 
   renderCoins(filtered);
 }
 
-$("searchInput").addEventListener(
-  "input",
-  updateMarketDisplay
-);
+if ($("searchInput")) {
+  $("searchInput").addEventListener(
+    "input",
+    updateMarketDisplay
+  );
+}
 
 // WATCHLIST
 
 function saveWatchlist() {
-  localStorage.setItem(
-    "cryptoRealityWatchlist",
-    JSON.stringify(watchlist)
-  );
+  try {
+    localStorage.setItem(
+      "cryptoRealityWatchlist",
+      JSON.stringify(watchlist)
+    );
+  } catch (error) {
+    console.error("Watchlist storage error:", error);
+  }
 }
 
 function renderWatchlist() {
+  const table = $("watchlistTable");
+  if (!table) return;
+
   const savedCoins = watchlist
     .map(id => coins.find(coin => coin.id === id))
     .filter(Boolean);
 
   if (!savedCoins.length) {
-    $("watchlistTable").innerHTML = `
+    table.innerHTML = `
       <tr>
         <td colspan="5" class="table-message">
           Your watchlist is empty. Add assets from the Markets table.
@@ -241,7 +283,7 @@ function renderWatchlist() {
     return;
   }
 
-  $("watchlistTable").innerHTML = savedCoins.map(coin => {
+  table.innerHTML = savedCoins.map(coin => {
     const change = Number(
       coin.price_change_percentage_24h || 0
     );
@@ -250,7 +292,13 @@ function renderWatchlist() {
       <tr>
         <td>
           <div class="coin-info">
-            <img src="${escapeHTML(coin.image)}" alt="" loading="lazy">
+            <img
+              src="${escapeHTML(coin.image)}"
+              alt=""
+              loading="lazy"
+              onerror="this.style.display='none'"
+            >
+
             <div class="coin-info-text">
               <strong>${escapeHTML(coin.name)}</strong>
               <small>${escapeHTML(coin.symbol).toUpperCase()}</small>
@@ -258,13 +306,17 @@ function renderWatchlist() {
           </div>
         </td>
 
-        <td class="price-cell">${price(coin.current_price)}</td>
+        <td class="price-cell">
+          ${price(coin.current_price)}
+        </td>
 
         <td class="${change >= 0 ? "positive" : "negative"}">
           ${change >= 0 ? "+" : ""}${change.toFixed(2)}%
         </td>
 
-        <td class="price-cell">${money(coin.market_cap)}</td>
+        <td class="price-cell">
+          ${money(coin.market_cap)}
+        </td>
 
         <td>
           <button
@@ -291,24 +343,25 @@ function toggleWatchlist(id) {
   renderWatchlist();
 }
 
-$("coinTable").addEventListener("click", event => {
-  const button = event.target.closest("[data-watch]");
+if ($("coinTable")) {
+  $("coinTable").addEventListener("click", event => {
+    const button = event.target.closest("[data-watch]");
+    if (!button) return;
 
-  if (!button) return;
+    toggleWatchlist(button.dataset.watch);
+  });
+}
 
-  toggleWatchlist(button.dataset.watch);
-});
+if ($("watchlistTable")) {
+  $("watchlistTable").addEventListener("click", event => {
+    const button = event.target.closest("[data-remove]");
+    if (!button) return;
 
-$("watchlistTable").addEventListener("click", event => {
-  const button = event.target.closest("[data-remove]");
-
-  if (!button) return;
-
-  toggleWatchlist(button.dataset.remove);
-});
+    toggleWatchlist(button.dataset.remove);
+  });
+}
 
 // BITCOIN CHART
-
 
 async function loadBitcoinChart() {
   const response = await fetch(
@@ -319,27 +372,33 @@ async function loadBitcoinChart() {
     throw new Error("Bitcoin chart unavailable");
   }
 
-  const data = await response.json();
-  const points = data.prices || [];
+  const result = await response.json();
+  const points = result.prices || [];
 
-  if (!points.length) return;
+  if (!points.length) {
+    throw new Error("No Bitcoin chart data");
+  }
 
-  const labels = points.map(item => item[0]);
-
-  const values = points.map(item => item[1]);
+  // Use timestamp/value objects for a proper time axis.
+  const chartData = points.map(item => ({
+    x: Number(item[0]),
+    y: Number(item[1])
+  }));
 
   const canvas = $("btcChart");
+
+  if (!canvas) return;
+
   const ctx = canvas.getContext("2d");
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+  const gradient = ctx.createLinearGradient(0, 0, 0, 320);
 
   gradient.addColorStop(0, "rgba(84, 134, 200, 0.22)");
   gradient.addColorStop(0.7, "rgba(84, 134, 200, 0.04)");
   gradient.addColorStop(1, "rgba(84, 134, 200, 0)");
 
   if (btcChart) {
-    btcChart.data.labels = labels;
-    btcChart.data.datasets[0].data = values;
+    btcChart.data.datasets[0].data = chartData;
     btcChart.data.datasets[0].backgroundColor = gradient;
     btcChart.update("none");
   } else {
@@ -347,12 +406,11 @@ async function loadBitcoinChart() {
       type: "line",
 
       data: {
-        labels,
-
         datasets: [{
           label: "BTC / USD",
-          data: values,
+          data: chartData,
 
+          parsing: false,
           borderColor: "#5486c8",
           backgroundColor: gradient,
 
@@ -374,15 +432,17 @@ async function loadBitcoinChart() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        normalized: true,
 
         animation: {
-          duration: 700,
+          duration: 500,
           easing: "easeOutQuart"
         },
 
         interaction: {
           intersect: false,
-          mode: "index"
+          mode: "nearest",
+          axis: "x"
         },
 
         plugins: {
@@ -400,19 +460,9 @@ async function loadBitcoinChart() {
             padding: 12,
             displayColors: false,
 
-            titleFont: {
-              size: 11,
-              weight: "600"
-            },
-
-            bodyFont: {
-              size: 13,
-              weight: "700"
-            },
-
             callbacks: {
               title: items => {
-                const timestamp = Number(items[0].label);
+                const timestamp = items[0].parsed.x;
 
                 return new Date(timestamp).toLocaleString(
                   "en-US",
@@ -454,15 +504,14 @@ async function loadBitcoinChart() {
               maxTicksLimit: 7,
               maxRotation: 0,
 
-              callback: value => {
-                return new Date(Number(value)).toLocaleDateString(
+              callback: value =>
+                new Date(Number(value)).toLocaleDateString(
                   "en-US",
                   {
                     month: "short",
                     day: "numeric"
                   }
-                );
-              },
+                ),
 
               font: {
                 size: 10
@@ -509,75 +558,6 @@ async function loadBitcoinChart() {
   lastChartUpdate = Date.now();
 }
 
-
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-
-        interaction: {
-          intersect: false,
-          mode: "index"
-        },
-
-        plugins: {
-          legend: {
-            display: false
-          },
-
-          tooltip: {
-            backgroundColor: "#101827",
-            padding: 12,
-
-            callbacks: {
-              label: context =>
-                "$" + Number(context.parsed.y).toLocaleString(
-                  "en-US",
-                  { maximumFractionDigits: 2 }
-                )
-            }
-          }
-        },
-
-        scales: {
-          x: {
-            grid: {
-              display: false
-            },
-
-            ticks: {
-              color: "#8792a3",
-              maxTicksLimit: 7,
-              font: {
-                size: 10
-              }
-            }
-          },
-
-          y: {
-            position: "right",
-
-            grid: {
-              color: "#e7ebf1"
-            },
-
-            ticks: {
-              color: "#8792a3",
-              font: {
-                size: 10
-              },
-
-              callback: value =>
-                "$" + Number(value).toLocaleString("en-US")
-            }
-          }
-        }
-      }
-    });
-  }
-
-  lastChartUpdate = Date.now();
-}
-
 // BITCOIN PRICE
 
 function updateBitcoinPrice() {
@@ -587,18 +567,22 @@ function updateBitcoinPrice() {
 
   if (!bitcoin) return;
 
-  $("btcPrice").textContent =
-    price(bitcoin.current_price);
+  if ($("btcPrice")) {
+    $("btcPrice").textContent =
+      price(bitcoin.current_price);
+  }
 
   const change = Number(
     bitcoin.price_change_percentage_24h || 0
   );
 
-  $("btcChange").textContent =
-    `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`;
+  if ($("btcChange")) {
+    $("btcChange").textContent =
+      `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`;
 
-  $("btcChange").className =
-    change >= 0 ? "positive" : "negative";
+    $("btcChange").className =
+      change >= 0 ? "positive" : "negative";
+  }
 }
 
 // LOAD COINS
@@ -614,13 +598,15 @@ async function loadCoins() {
 
   const data = await response.json();
 
-  if (!Array.isArray(data)) {
+  if (!Array.isArray(data) || !data.length) {
     throw new Error("Invalid coin data");
   }
 
   coins = data;
 
-  $("coinCount").textContent = coins.length;
+  if ($("coinCount")) {
+    $("coinCount").textContent = coins.length;
+  }
 
   updateMarketDisplay();
   renderWatchlist();
@@ -634,67 +620,95 @@ async function loadDashboard(showMessage = false) {
 
   isLoading = true;
 
-  $("status").textContent = "Updating market data...";
+  if ($("status")) {
+    $("status").textContent = "Updating market data...";
+  }
+
   setConnection("Connecting...");
 
-  try {
-    const tasks = [
-      loadCoins(),
-      loadGlobalData()
-    ];
+  const tasks = [
+    loadCoins(),
+    loadGlobalData()
+  ];
 
-    const chartIsDue =
-      !lastChartUpdate ||
-      Date.now() - lastChartUpdate >= CHART_REFRESH_INTERVAL;
+  const chartIsDue =
+    !lastChartUpdate ||
+    Date.now() - lastChartUpdate >= CHART_REFRESH_INTERVAL;
 
-    if (chartIsDue) {
-      tasks.push(loadBitcoinChart());
+  if (chartIsDue) {
+    tasks.push(loadBitcoinChart());
+  }
+
+  const results = await Promise.allSettled(tasks);
+
+  const coinsLoaded = results[0].status === "fulfilled";
+  const globalLoaded = results[1].status === "fulfilled";
+
+  const chartLoaded = chartIsDue
+    ? results[2].status === "fulfilled"
+    : true;
+
+  results.forEach(result => {
+    if (result.status === "rejected") {
+      console.error("Dashboard update error:", result.reason);
     }
+  });
 
-    await Promise.all(tasks);
-
-    $("status").textContent =
-      "Last updated: " +
-      new Date().toLocaleTimeString("en-US");
-
+  if (coinsLoaded || globalLoaded) {
     setConnection("Connected");
 
-    if (showMessage) {
-      showToast("Market data updated");
+    if ($("status")) {
+      $("status").textContent =
+        "Last updated: " +
+        new Date().toLocaleTimeString("en-US");
     }
-
-  } catch (error) {
-    console.error(error);
-
-    $("status").textContent =
-      "Update failed. Check your connection.";
-
+  } else {
     setConnection("Connection issue");
 
-    if (showMessage) {
-      showToast("Unable to update market data");
+    if ($("status")) {
+      $("status").textContent =
+        "Update failed. Check your connection.";
     }
-
-  } finally {
-    isLoading = false;
   }
+
+  if (!chartLoaded) {
+    console.warn("Bitcoin chart update failed.");
+  }
+
+  if (showMessage) {
+    if (coinsLoaded && globalLoaded) {
+      showToast("Market data updated");
+    } else {
+      showToast("Some market data could not be updated");
+    }
+  }
+
+  isLoading = false;
 }
 
 // REFRESH BUTTONS
 
-$("refreshBtn").addEventListener("click", () => {
-  loadDashboard(true);
-});
+if ($("refreshBtn")) {
+  $("refreshBtn").addEventListener("click", () => {
+    loadDashboard(true);
+  });
+}
 
-$("refreshMarket").addEventListener("click", () => {
-  loadDashboard(true);
-});
+if ($("refreshMarket")) {
+  $("refreshMarket").addEventListener("click", () => {
+    loadDashboard(true);
+  });
+}
 
 // MOBILE MENU
 
-$("menuBtn").addEventListener("click", () => {
-  $("sidebar").classList.toggle("open");
-});
+if ($("menuBtn")) {
+  $("menuBtn").addEventListener("click", () => {
+    if ($("sidebar")) {
+      $("sidebar").classList.toggle("open");
+    }
+  });
+}
 
 // NAVIGATION
 
@@ -710,7 +724,9 @@ document.querySelectorAll(".nav-item").forEach(link => {
       ).forEach(item => item.classList.add("active"));
     }
 
-    $("sidebar").classList.remove("open");
+    if ($("sidebar")) {
+      $("sidebar").classList.remove("open");
+    }
   });
 });
 
@@ -718,7 +734,7 @@ document.querySelectorAll(".nav-item").forEach(link => {
 
 loadDashboard();
 
-// FETCH FRESH MARKET DATA EVERY 60 SECONDS
+// AUTO REFRESH EVERY 60 SECONDS
 
 setInterval(() => {
   loadDashboard();
