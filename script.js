@@ -309,6 +309,7 @@ $("watchlistTable").addEventListener("click", event => {
 
 // BITCOIN CHART
 
+
 async function loadBitcoinChart() {
   const response = await fetch(
     `${API}/coins/bitcoin/market_chart?vs_currency=usd&days=7`
@@ -323,24 +324,26 @@ async function loadBitcoinChart() {
 
   if (!points.length) return;
 
-  const labels = points.map(item =>
-    new Date(item[0]).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric"
-    })
-  );
+  const labels = points.map(item => item[0]);
 
   const values = points.map(item => item[1]);
 
   const canvas = $("btcChart");
+  const ctx = canvas.getContext("2d");
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+
+  gradient.addColorStop(0, "rgba(84, 134, 200, 0.22)");
+  gradient.addColorStop(0.7, "rgba(84, 134, 200, 0.04)");
+  gradient.addColorStop(1, "rgba(84, 134, 200, 0)");
 
   if (btcChart) {
     btcChart.data.labels = labels;
     btcChart.data.datasets[0].data = values;
+    btcChart.data.datasets[0].backgroundColor = gradient;
     btcChart.update("none");
   } else {
-    btcChart = new Chart(canvas, {
+    btcChart = new Chart(ctx, {
       type: "line",
 
       data: {
@@ -349,15 +352,163 @@ async function loadBitcoinChart() {
         datasets: [{
           label: "BTC / USD",
           data: values,
+
           borderColor: "#5486c8",
-          backgroundColor: "rgba(84, 134, 200, 0.10)",
-          borderWidth: 2,
+          backgroundColor: gradient,
+
+          borderWidth: 2.5,
           fill: true,
-          tension: 0.3,
+          tension: 0.35,
+
           pointRadius: 0,
-          pointHoverRadius: 4
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: "#ffffff",
+          pointHoverBorderColor: "#5486c8",
+          pointHoverBorderWidth: 2,
+
+          borderJoinStyle: "round",
+          borderCapStyle: "round"
         }]
       },
+
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+
+        animation: {
+          duration: 700,
+          easing: "easeOutQuart"
+        },
+
+        interaction: {
+          intersect: false,
+          mode: "index"
+        },
+
+        plugins: {
+          legend: {
+            display: false
+          },
+
+          tooltip: {
+            enabled: true,
+            backgroundColor: "#101827",
+            titleColor: "#ffffff",
+            bodyColor: "#ffffff",
+            borderColor: "#5486c8",
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+
+            titleFont: {
+              size: 11,
+              weight: "600"
+            },
+
+            bodyFont: {
+              size: 13,
+              weight: "700"
+            },
+
+            callbacks: {
+              title: items => {
+                const timestamp = Number(items[0].label);
+
+                return new Date(timestamp).toLocaleString(
+                  "en-US",
+                  {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  }
+                );
+              },
+
+              label: context =>
+                "$" + Number(context.parsed.y).toLocaleString(
+                  "en-US",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  }
+                )
+            }
+          }
+        },
+
+        scales: {
+          x: {
+            type: "linear",
+
+            grid: {
+              display: false
+            },
+
+            border: {
+              display: false
+            },
+
+            ticks: {
+              color: "#8792a3",
+              maxTicksLimit: 7,
+              maxRotation: 0,
+
+              callback: value => {
+                return new Date(Number(value)).toLocaleDateString(
+                  "en-US",
+                  {
+                    month: "short",
+                    day: "numeric"
+                  }
+                );
+              },
+
+              font: {
+                size: 10
+              }
+            }
+          },
+
+          y: {
+            position: "right",
+
+            border: {
+              display: false
+            },
+
+            grid: {
+              color: "rgba(135, 146, 163, 0.12)",
+              drawTicks: false
+            },
+
+            ticks: {
+              color: "#8792a3",
+              padding: 12,
+              maxTicksLimit: 6,
+
+              callback: value =>
+                "$" + Number(value).toLocaleString(
+                  "en-US",
+                  {
+                    notation: "compact",
+                    maximumFractionDigits: 2
+                  }
+                ),
+
+              font: {
+                size: 10
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  lastChartUpdate = Date.now();
+}
+
 
       options: {
         responsive: true,
