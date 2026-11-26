@@ -5,37 +5,47 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#080c12">
   <meta name="description" content="Crypto Reality — independent crypto market research and wallet intelligence.">
-  <title>Crypto Reality v2.4 — Market Intelligence</title>
+  <title>Crypto Reality v3.0 — Digital Asset Intelligence</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
   <aside class="sidebar" id="sidebar">
     <a class="brand" href="#overview"><span class="brand-mark">CR</span><span class="brand-name">CRYPTO <b>REALITY</b><small>INDEPENDENT MARKET INTELLIGENCE</small></span></a>
     <div class="nav-label">WORKSPACE</div>
     <nav class="navigation" aria-label="Main sections">
-      <a class="nav-item active" href="#overview" aria-current="page"><span>⌂</span> Overview</a>
-      <a class="nav-item" href="#markets"><span>▤</span> Markets</a>
-      <a class="nav-item" href="#charts"><span>⌁</span> Technical analysis</a>
-      <a class="nav-item" href="#research"><span>◈</span> Valuation research</a>
-      <a class="nav-item" href="#protocols"><span>⌘</span> Protocol research</a>
-      <a class="nav-item" href="#wallets"><span>◎</span> Wallet tracker</a>
-      <a class="nav-item" href="#watchlist"><span>☆</span> Watchlist</a>
+      <a class="nav-item active" href="#overview" aria-current="page"><i data-lucide="layout-dashboard" aria-hidden="true"></i> Overview</a>
+      <a class="nav-item" href="#markets"><i data-lucide="candlestick-chart" aria-hidden="true"></i> Markets</a>
+      <a class="nav-item" href="#charts"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i> Technical analysis</a>
+      <a class="nav-item" href="#research"><i data-lucide="scan-search" aria-hidden="true"></i> Valuation research</a>
+      <a class="nav-item" href="#protocols"><i data-lucide="network" aria-hidden="true"></i> Protocol research</a>
+      <a class="nav-item" href="#wallets"><i data-lucide="wallet" aria-hidden="true"></i> Wallet tracker</a>
+      <a class="nav-item" href="#watchlist"><i data-lucide="star" aria-hidden="true"></i> Watchlist</a>
     </nav>
     <div class="sidebar-bottom">
       <div class="connection-box"><i id="connectionDot"></i><div><strong>Market data</strong><small id="connection">Connecting…</small></div></div>
-      <div class="sidebar-foot">CRYPTO REALITY <span>v2.4</span></div>
+      <div class="sidebar-foot">CRYPTO REALITY <span>v3.0</span></div>
     </div>
   </aside>
 
   <main class="main">
     <header class="topbar">
-      <div class="top-left"><button class="menu-button" id="menuBtn" aria-label="Open menu">☰</button><div><div class="eyebrow">INDEPENDENT MARKET INTELLIGENCE</div><h1 id="pageTitle">Overview</h1></div></div>
-      <div class="top-actions"><span class="live-pill"><i></i> LIVE MARKET DATA</span><button class="btn primary" id="refreshBtn">↻ Refresh</button></div>
+      <div class="top-left"><button class="menu-button" id="menuBtn" aria-label="Open menu"><i data-lucide="panel-left" aria-hidden="true"></i></button><div><div class="eyebrow">INDEPENDENT MARKET INTELLIGENCE</div><h1 id="pageTitle">Overview</h1></div></div>
+      <div class="top-actions"><span class="live-pill"><i></i> LIVE MARKET DATA</span><button class="btn primary" id="refreshBtn"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>Refresh data</span></button></div>
     </header>
+    <div class="market-ribbon" aria-label="Market status">
+      <div class="ribbon-label"><span class="ribbon-pulse"></span> MARKET SNAPSHOT</div>
+      <div class="ribbon-item"><span>BTC</span><b>Bitcoin</b><em>Global benchmark</em></div>
+      <div class="ribbon-item"><span>ETH</span><b>Ethereum</b><em>Smart contract layer</em></div>
+      <div class="ribbon-item"><span>ON-CHAIN</span><b>Research terminal</b><em>Multi-network coverage</em></div>
+      <div class="ribbon-spacer"></div>
+      <span class="ribbon-time"><i data-lucide="activity" aria-hidden="true"></i> Data refreshes automatically</span>
+    </div>
     <nav class="mobile-tabs" aria-label="Quick workspace navigation">
       <a class="mobile-tab active" href="#overview" aria-current="page">Overview</a>
       <a class="mobile-tab" href="#markets">Markets</a>
@@ -61,10 +71,12 @@
         <div class="chart-controls"><select id="chartCoin" aria-label="Chart asset"><option value="bitcoin">Bitcoin (BTC)</option></select><select id="chartDays" aria-label="Chart timeframe"><option value="1">24 hours</option><option value="7" selected>7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div>
       </div>
       <div class="panel chart-panel">
-        <div class="chart-top"><div><strong id="chartTitle">BTC / USD</strong><small id="chartSubtitle">Price with EMA 20 and Bollinger Bands</small></div><div class="indicator-toggles">
+        <div class="chart-top chart-top-v3"><div><strong id="chartTitle">BTC / USD</strong><small id="chartSubtitle">Price with EMA 20 and Bollinger Bands</small></div>
+          <div class="chart-actions"><div class="chart-mode" role="group" aria-label="Chart display"><button type="button" class="active" id="lineMode">Line</button><button type="button" id="candleMode">Candles</button></div><div class="indicator-toggles">
           <label><input type="checkbox" id="showEma" checked> EMA 20</label><label><input type="checkbox" id="showBands"> Bollinger</label>
-        </div></div>
-        <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+        </div></div></div>
+        <div class="chart-wrap" id="lineChartWrap"><canvas id="priceChart"></canvas></div>
+        <div class="chart-wrap candle-chart-wrap" id="candleChartWrap" hidden><div id="candleChart" aria-label="Candlestick price chart"></div><div id="candleStatus" class="chart-status" hidden></div></div>
         <div class="indicator-grid">
           <div class="indicator-card"><span>RSI (14)</span><strong id="rsiValue">—</strong><small id="rsiLabel">Momentum</small></div>
           <div class="indicator-card"><span>MACD (12, 26, 9)</span><strong id="macdValue">—</strong><small id="macdLabel">Trend momentum</small></div>
