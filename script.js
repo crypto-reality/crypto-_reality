@@ -32,7 +32,7 @@ if(priceChart){priceChart.data.labels=labels;priceChart.data.datasets=sets;price
 async function loadChart(){const id=$("chartCoin").value||"bitcoin",days=$("chartDays").value;const coin=coins.find(c=>c.id===id);$("chartTitle").textContent=`${coin?.symbol.toUpperCase()||id} / USD`;$("chartSubtitle").textContent=`${days==="1"?"24-hour":days+"-day"} price history · EMA, RSI, MACD and Bollinger calculations`;const result=await getJSON(`${API}/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=${days}`);chartPrices=(result.prices||[]).map(([x,y])=>({x:Number(x),y:Number(y)}));if(chartPrices.length<30)throw Error("Not enough historical points for all indicators");drawChart()}
 function research(id){const c=coins.find(x=>x.id===id);$("researchEmpty").hidden=!!c;$("researchContent").hidden=!c;if(!c)return;const cap=Number(c.market_cap),fdv=Number(c.fully_diluted_valuation),vol=Number(c.total_volume),cir=Number(c.circulating_supply),total=Number(c.total_supply),max=Number(c.max_supply),fdvRatio=cap>0&&fdv>0?fdv/cap:null,share=cir>0?(max>0?cir/max:total>0?cir/total:null):null,turn=cap>0?vol/cap:null;
 $("researchImage").src=c.image;$("researchName").textContent=c.name;$("researchSymbol").textContent=c.symbol.toUpperCase();$("rCap").textContent=money(cap);$("rFdv").textContent=money(fdv);$("rFdvRatio").textContent=fdvRatio?num(fdvRatio,2)+"x":"—";$("rTurnover").textContent=turn==null?"—":num(turn*100,2)+"%";$("rCirculating").textContent=supply(c.circulating_supply);$("rSupplyShare").textContent=share==null?"—":num(share*100,1)+"%";
-$("rRevenue").textContent="Not linked";$("rRevenueNote").textContent="Choose a protocol below to compare reported revenue";$("rMultiple").textContent="—";
+$("rRevenue").textContent="Not linked";$("rRevenueNote").textContent="Choose a protocol below to compare reported revenue";$("rMultiple").textContent="—";setRevenueResearchDefaults("Not linked");
 populateResearchProtocolOptions(c);
 const notes=[];if(fdvRatio!=null){if(fdvRatio>3)notes.push("Fully diluted valuation is more than three times current market cap. Check vesting, unlocks and future emissions.");else if(fdvRatio>1.5)notes.push("FDV is notably above market cap. Future supply growth could create selling pressure.");else notes.push("FDV is relatively close to current market cap, based on the reported supply fields.")}else notes.push("FDV data is missing or incomplete, so dilution cannot be assessed.");
 if(share!=null)notes.push(`${num(share*100,1)}% of the reported maximum or total supply is circulating. Confirm the token's unlock schedule independently.`);else notes.push("A circulating-supply percentage cannot be calculated from the available fields.");
@@ -63,6 +63,20 @@ function populateResearchProtocolOptions(coin) {
   if(!matches.length)select.innerHTML+='<option value="" disabled>No obvious match found — use Protocol Research below</option>';
   if(old&&matches.some(p=>(p.slug||p.module||p.name)===old))select.value=old;
 }
+function setRevenueResearchDefaults(status="Not linked") {
+  ["r30dAvg","rAnnualized","rTrend","rHolderRevenue"].forEach(id=>$(id).textContent="—");
+  $("rDataQuality").textContent=status;
+  $("rValuationSignal").textContent="Link a protocol to review revenue history. No fair-value estimate is made when token value capture cannot be verified.";
+}
+function summarizeRevenueHistory(rows) {
+  const clean=(rows||[]).map(row=>({time:Number(row[0]),value:Number(row[1])})).filter(x=>Number.isFinite(x.time)&&Number.isFinite(x.value)&&x.value>=0).sort((a,b)=>a.time-b.time);
+  if(clean.length<30)return {clean,avg30:null,previous30:null,growth:null};
+  const recent=clean.slice(-30),previous=clean.slice(-60,-30);
+  const average=a=>a.length?a.reduce((sum,x)=>sum+x.value,0)/a.length:null;
+  const avg30=average(recent),previous30=average(previous);
+  const growth=previous30>0&&avg30!=null?(avg30/previous30-1)*100:null;
+  return {clean,avg30,previous30,growth};
+}
 async function loadAssetRevenueComparison(slug) {
   const coin=coins.find(c=>c.id===$("researchCoin").value);
   const protocol=protocolRows.find(p=>protocolKey(p.slug||p.module||p.name)===protocolKey(slug));
@@ -70,25 +84,50 @@ async function loadAssetRevenueComparison(slug) {
   $("rRevenue").textContent="Loading…";
   $("rRevenueNote").textContent=`Checking ${protocol.name} revenue data`;
   $("rMultiple").textContent="—";
+  setRevenueResearchDefaults("Loading data");
   try {
-    const result=await getJSON(`${LLAMA_API}/summary/fees/${encodeURIComponent(protocol.slug||protocol.module)}?dataType=dailyRevenue`);
+    const endpoint=`${LLAMA_API}/summary/fees/${encodeURIComponent(protocol.slug||protocol.module)}`;
+    const [result,holderResult]=await Promise.all([
+      getJSON(`${endpoint}?dataType=dailyRevenue`),
+      getJSON(`${endpoint}?dataType=dailyHoldersRevenue`).catch(()=>null)
+    ]);
     if($("researchCoin").value!==coin.id||$("researchProtocolMatch").value!==slug)return;
     const daily=Number(result.total24h);
-    if(!Number.isFinite(daily)||daily<=0){
-      $("rRevenue").textContent="Not reported";
-      $("rRevenueNote").textContent=`No positive 24h revenue figure reported for ${protocol.name}`;
-      $("rMultiple").textContent="—";
-      return;
-    }
-    $("rRevenue").textContent=money(daily);
+    const history=summarizeRevenueHistory(result.totalDataChart||result.totalDataChartBreakdown||[]);
+    const hasDaily=Number.isFinite(daily)&&daily>=0;
+    $("rRevenue").textContent=hasDaily?money(daily):"Not reported";
     $("rRevenueNote").textContent=`${protocol.name} · reported 24h protocol revenue`;
-    $("rMultiple").textContent=coin.market_cap>0?num(coin.market_cap/(daily*365),2)+"x":"—";
-    const note=`${protocol.name} reports ${money(daily)} in 24h protocol revenue. A simple annualized run-rate is ${money(daily*365)}; the market-cap multiple is contextual and does not mean revenue flows to ${coin.symbol.toUpperCase()} holders.`;
-    $("researchNotes").innerHTML+=`<li>${safe(note)}</li>`;
+    $("rMultiple").textContent=hasDaily&&daily>0&&coin.market_cap>0?num(coin.market_cap/(daily*365),2)+"x":"—";
+    if(history.avg30!=null){
+      $("r30dAvg").textContent=money(history.avg30);
+      $("rAnnualized").textContent=money(history.avg30*365);
+      if(history.growth==null){$("rTrend").textContent="Baseline unavailable";}
+      else {$("rTrend").textContent=pct(history.growth);$("rTrend").className=history.growth>=0?"positive":"negative";}
+    } else {
+      $("r30dAvg").textContent="Insufficient history";
+      $("rAnnualized").textContent="—";
+      $("rTrend").textContent="—";
+    }
+    const holder=Number(holderResult?.total24h);
+    $("rHolderRevenue").textContent=Number.isFinite(holder)&&holder>=0?money(holder):"Not reported";
+    const hasHistory=history.clean.length>=30;
+    $("rDataQuality").textContent=hasDaily&&hasHistory?"Revenue data available":hasDaily?"Limited history":"Partial data";
+    const multiple=history.avg30>0&&coin.market_cap>0?coin.market_cap/(history.avg30*365):null;
+    $("rValuationSignal").textContent=multiple==null
+      ? "Revenue history or market-cap inputs are incomplete. A reliable revenue multiple cannot be calculated."
+      : `Context only: ${num(multiple,2)}x market cap / annualized 30-day protocol revenue. This is not a fair-value estimate; it assumes no token-holder entitlement and should be compared with similar protocols.`;
+    const notes=[];
+    notes.push(`${protocol.name} is manually linked to ${coin.name}. Verify the relationship between the protocol and token independently.`);
+    if(history.growth!=null)notes.push(`Average daily protocol revenue changed ${pct(history.growth)} versus the preceding 30-day period. This describes protocol revenue, not token price performance.`);
+    else notes.push("The source did not provide enough daily observations to calculate a 30-day revenue trend.");
+    if(!Number.isFinite(holder)||holder<0)notes.push("Holder revenue was not reported. Protocol revenue must not be treated as income received by token holders.");
+    notes.push("The annualized run-rate extrapolates recent revenue and is not a forecast. A one-day or 30-day revenue multiple is not a standalone buy/sell signal.");
+    $("researchNotes").innerHTML=notes.map(n=>`<li>${safe(n)}</li>`).join("");
   } catch(error) {
     $("rRevenue").textContent="Unavailable";
     $("rRevenueNote").textContent="The protocol revenue endpoint could not be reached";
     $("rMultiple").textContent="—";
+    setRevenueResearchDefaults("Data unavailable");
   }
 }
 
@@ -247,6 +286,35 @@ $("coinTable").addEventListener("click",e=>{const b=e.target.closest("[data-watc
 $("researchCoin").addEventListener("change",e=>research(e.target.value));
 $("researchProtocolMatch").addEventListener("change",e=>{if(e.target.value)loadAssetRevenueComparison(e.target.value)});$("chartCoin").addEventListener("change",()=>loadChart().catch(e=>toast(e.message)));$("chartDays").addEventListener("change",()=>loadChart().catch(e=>toast(e.message)));["showEma","showBands"].forEach(id=>$(id).addEventListener("change",()=>chartPrices.length&&drawChart()));
 $("refreshBtn").addEventListener("click",()=>refresh(true));$("marketRefresh").addEventListener("click",()=>refresh(true));$("menuBtn").addEventListener("click",()=>$("sidebar").classList.toggle("open"));
-document.querySelectorAll(".nav-item").forEach(a=>a.addEventListener("click",()=>{$("pageTitle").textContent=a.textContent.trim();document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n===a));$("sidebar").classList.remove("open")}));
+const workspaceTabs=[...document.querySelectorAll(".nav-item")];
+const mobileTabs=[...document.querySelectorAll(".mobile-tab")];
+const workspaceSections=workspaceTabs.map(a=>document.querySelector(a.getAttribute("href"))).filter(Boolean);
+function activateWorkspaceTab(hash, updateHistory=false){
+  const target=workspaceTabs.find(a=>a.getAttribute("href")===(hash||"#overview"))||workspaceTabs[0];
+  const sectionId=target.getAttribute("href").slice(1);
+  workspaceSections.forEach(section=>{
+    const active=section.id===sectionId;
+    section.hidden=!active;
+    section.classList.toggle("active-view",active);
+  });
+  workspaceTabs.forEach(a=>{
+    const active=a===target;
+    a.classList.toggle("active",active);
+    if(active)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");
+  });
+  mobileTabs.forEach(a=>{
+    const active=a.getAttribute("href")===`#${sectionId}`;
+    a.classList.toggle("active",active);
+    if(active)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");
+  });
+  $("pageTitle").textContent=target.textContent.trim();
+  $("sidebar").classList.remove("open");
+  if(updateHistory&&location.hash!==target.getAttribute("href")) history.pushState(null,"",target.getAttribute("href"));
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+workspaceTabs.forEach(a=>a.addEventListener("click",e=>{e.preventDefault();activateWorkspaceTab(a.getAttribute("href"),true)}));
+mobileTabs.forEach(a=>a.addEventListener("click",e=>{e.preventDefault();activateWorkspaceTab(a.getAttribute("href"),true)}));
+window.addEventListener("hashchange",()=>activateWorkspaceTab(location.hash));
+activateWorkspaceTab(location.hash||"#overview");
 $("currentDate").textContent=new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"short",day:"numeric"});
 loadLocal();renderWallets();refresh().then(()=>{loadChart().catch(e=>{console.error(e);toast("Chart data could not be loaded")});loadProtocolDirectory(false)});setInterval(()=>refresh(false),120000);
