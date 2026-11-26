@@ -1,680 +1,252 @@
-const API = "https://api.coingecko.com/api/v3";
-const REFRESH_INTERVAL = 60000;
-const CHART_REFRESH_INTERVAL = 300000;
-const MARKET_LIMIT = 100;
+const API="https://api.coingecko.com/api/v3";
+const MARKET_LIMIT=250;
+// For production, replace this with your own Solana RPC/indexer URL.
+// Never put a private key or seed phrase in this file.
+const SOLANA_RPC="https://api.mainnet-beta.solana.com";
+let coins=[],priceChart=null,chartPrices=[],watchlist=[],trackedWallets=[],activeWallet=null,busy=false;
+const $=id=>document.getElementById(id);
+const safe=(v)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=(v,d=2)=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("en-US",{maximumFractionDigits:d});
+const money=v=>v==null||!Number.isFinite(Number(v))?"—":"$"+Number(v).toLocaleString("en-US",{notation:"compact",maximumFractionDigits:2});
+const price=v=>v==null||!Number.isFinite(Number(v))?"—":"$"+Number(v).toLocaleString("en-US",{minimumFractionDigits:Number(v)<1?4:2,maximumFractionDigits:Number(v)<1?8:2});
+const pct=v=>v==null||!Number.isFinite(Number(v))?"—":`${Number(v)>=0?"+":""}${Number(v).toFixed(2)}%`;
+const supply=v=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("en-US",{notation:"compact",maximumFractionDigits:3});
+const toast=msg=>{const el=$("toast");el.textContent=msg;el.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove("show"),2600)};
+async function getJSON(url){const r=await fetch(url);if(!r.ok)throw Error(r.status===429?"CoinGecko rate limit. Wait a moment and retry.":`Request failed (${r.status})`);return r.json()}
+async function rpc(method,params){const r=await fetch(SOLANA_RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw Error(`Solana RPC error (${r.status})`);const j=await r.json();if(j.error)throw Error(j.error.message||"Solana RPC error");return j.result}
+function setConnection(s){$("connection").textContent=s;$("connectionDot").className=s==="Connected"?"ok":s==="Connection issue"?"bad":""}
+function loadLocal(){try{watchlist=JSON.parse(localStorage.getItem("cr_watch")||"[]");trackedWallets=JSON.parse(localStorage.getItem("cr_wallets")||"[]");if(!Array.isArray(watchlist))watchlist=[];if(!Array.isArray(trackedWallets))trackedWallets=[]}catch{watchlist=[];trackedWallets=[]}}
+function saveLocal(){localStorage.setItem("cr_watch",JSON.stringify(watchlist));localStorage.setItem("cr_wallets",JSON.stringify(trackedWallets))}
+function updateGlobal(data){$("marketCap").textContent=money(data.total_market_cap?.usd);$("volume").textContent=money(data.total_volume?.usd);$("btcDominance").textContent=num(data.market_cap_percentage?.btc,1)+"%";const c=data.market_cap_change_percentage_24h_usd;$("marketCapChange").textContent=pct(c)+" over 24h";$("marketCapChange").className=Number(c)>=0?"positive":"negative"}
+function coinRow(c,watch=false){const ch=Number(c.price_change_percentage_24h||0);return `<tr><td>${c.market_cap_rank??"—"}</td><td><div class="coin-info"><img src="${safe(c.image)}" alt="" loading="lazy"><div><strong>${safe(c.name)}</strong><small>${safe(c.symbol).toUpperCase()}</small></div></div></td><td>${price(c.current_price)}</td><td class="${ch>=0?"positive":"negative"}">${pct(ch)}</td><td>${money(c.market_cap)}</td><td>${money(c.total_volume)}</td><td><button class="watch-button" data-watch="${safe(c.id)}" title="Toggle watchlist">${watchlist.includes(c.id)?"★":"☆"}</button></td></tr>`}
+function renderMarkets(){let list=[...coins],q=$("searchInput").value.trim().toLowerCase(),cat=$("categoryFilter").value,sort=$("sortBy").value;list=list.filter(c=>c.name.toLowerCase().includes(q)||c.symbol.toLowerCase().includes(q));if(cat==="large")list=list.filter(c=>c.market_cap_rank<=20);if(cat==="mid")list=list.filter(c=>c.market_cap_rank>20&&c.market_cap_rank<=100);if(cat==="small")list=list.filter(c=>c.market_cap_rank>100);if(cat==="gainers")list.sort((a,b)=>(b.price_change_percentage_24h||0)-(a.price_change_percentage_24h||0));if(cat==="losers")list.sort((a,b)=>(a.price_change_percentage_24h||0)-(b.price_change_percentage_24h||0));if(sort==="market_cap_desc")list.sort((a,b)=>(b.market_cap||0)-(a.market_cap||0));if(sort==="market_cap_asc")list.sort((a,b)=>(a.market_cap||0)-(b.market_cap||0));if(sort==="volume_desc")list.sort((a,b)=>(b.total_volume||0)-(a.total_volume||0));if(sort==="change_desc")list.sort((a,b)=>(b.price_change_percentage_24h||0)-(a.price_change_percentage_24h||0));if(sort==="change_asc")list.sort((a,b)=>(a.price_change_percentage_24h||0)-(b.price_change_percentage_24h||0));$("coinTable").innerHTML=list.length?list.map(c=>coinRow(c)).join(""):`<tr><td colspan="7" class="empty">No matching assets.</td></tr>`;$("marketCount").textContent=`${list.length} assets`;$("coinCount").textContent=coins.length}
+function renderWatch(){const list=watchlist.map(id=>coins.find(c=>c.id===id)).filter(Boolean);$("watchlistTable").innerHTML=list.length?list.map(c=>`<tr><td><div class="coin-info"><img src="${safe(c.image)}" alt=""><div><strong>${safe(c.name)}</strong><small>${safe(c.symbol).toUpperCase()}</small></div></div></td><td>${price(c.current_price)}</td><td class="${Number(c.price_change_percentage_24h)>=0?"positive":"negative"}">${pct(c.price_change_percentage_24h)}</td><td>${money(c.market_cap)}</td><td><button class="remove-button" data-remove="${safe(c.id)}">Remove</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">Your watchlist is empty.</td></tr>`}
+function toggleWatch(id){watchlist=watchlist.includes(id)?watchlist.filter(x=>x!==id):[...watchlist,id];saveLocal();renderMarkets();renderWatch();toast(watchlist.includes(id)?"Added to watchlist":"Removed from watchlist")}
+function fillSelectors(){const opts=coins.map(c=>`<option value="${safe(c.id)}">${safe(c.name)} (${safe(c.symbol.toUpperCase())})</option>`).join("");const old=$("chartCoin").value||"bitcoin",oldR=$("researchCoin").value;$("chartCoin").innerHTML=opts;$("researchCoin").innerHTML='<option value="">Choose an asset…</option>'+opts;$("chartCoin").value=coins.some(c=>c.id===old)?old:"bitcoin";if(oldR&&coins.some(c=>c.id===oldR))$("researchCoin").value=oldR}
+function ema(values,period){let out=Array(values.length).fill(null),k=2/(period+1),seed=values.slice(0,period);if(seed.length<period)return out;let prev=seed.reduce((a,b)=>a+b,0)/period;out[period-1]=prev;for(let i=period;i<values.length;i++){prev=values[i]*k+prev*(1-k);out[i]=prev}return out}
+function rsi(values,p=14){let out=Array(values.length).fill(null);if(values.length<=p)return out;let gains=0,loss=0;for(let i=1;i<=p;i++){let d=values[i]-values[i-1];gains+=Math.max(d,0);loss+=Math.max(-d,0)}let ag=gains/p,al=loss/p;out[p]=al===0?100:100-100/(1+ag/al);for(let i=p+1;i<values.length;i++){let d=values[i]-values[i-1];ag=(ag*(p-1)+Math.max(d,0))/p;al=(al*(p-1)+Math.max(-d,0))/p;out[i]=al===0?100:100-100/(1+ag/al)}return out}
+function bollinger(values,p=20){let mid=Array(values.length).fill(null),up=[...mid],lo=[...mid];for(let i=p-1;i<values.length;i++){let a=values.slice(i-p+1,i+1),m=a.reduce((x,y)=>x+y,0)/p,sd=Math.sqrt(a.reduce((x,y)=>x+(y-m)**2,0)/p);mid[i]=m;up[i]=m+2*sd;lo[i]=m-2*sd}return{mid,up,lo}}
+function drawChart(){const values=chartPrices.map(p=>p.y),labels=chartPrices.map(p=>new Date(p.x).toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit"}));const e=ema(values,20),b=bollinger(values),last=values.at(-1),rv=rsi(values).filter(v=>v!==null).at(-1),macdLine=ema(values,12).map((v,i)=>v==null||ema(values,26)[i]==null?null:v-ema(values,26)[i]),signal=ema(macdLine.map(v=>v??0),9),mv=macdLine.at(-1),sv=signal.at(-1);$("rsiValue").textContent=rv==null?"—":num(rv,1);$("rsiLabel").textContent=rv==null?"Not enough history":rv>=70?"Overbought zone":rv<=30?"Oversold zone":"Neutral momentum";$("macdValue").textContent=mv==null?"—":num(mv,4);$("macdLabel").textContent=mv==null?"Not enough history":mv>=sv?"MACD above signal":"MACD below signal";$("emaValue").textContent=e.at(-1)==null?"—":price(e.at(-1));const recent=values.slice(-20),mean=recent.reduce((a,b)=>a+b,0)/recent.length,sd=Math.sqrt(recent.reduce((a,b)=>a+(b-mean)**2,0)/recent.length);$("volValue").textContent=mean?num(sd/mean*100,2)+"%":"—";
+const sets=[{label:"Price",data:values,borderColor:"#72aaff",borderWidth:2,pointRadius:0,tension:.25}];if($("showEma").checked)sets.push({label:"EMA 20",data:e,borderColor:"#e8b66c",borderWidth:1.5,pointRadius:0,borderDash:[5,4],spanGaps:true});if($("showBands").checked){sets.push({label:"Upper band",data:b.up,borderColor:"#9a8cff",borderWidth:1,pointRadius:0,spanGaps:true});sets.push({label:"Lower band",data:b.lo,borderColor:"#9a8cff",borderWidth:1,pointRadius:0,spanGaps:true})}
+if(priceChart){priceChart.data.labels=labels;priceChart.data.datasets=sets;priceChart.update()}else priceChart=new Chart($("priceChart"),{type:"line",data:{labels,datasets:sets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{labels:{color:"#a8b7ca",boxWidth:18,font:{size:10}}},tooltip:{backgroundColor:"#101a29",borderColor:"#385578",borderWidth:1,callbacks:{label:c=>`${c.dataset.label}: ${price(c.raw)}`}}},scales:{x:{ticks:{color:"#8091aa",maxTicksLimit:8,maxRotation:0},grid:{display:false}},y:{position:"right",ticks:{color:"#8091aa",callback:v=>"$"+Number(v).toLocaleString("en-US",{notation:"compact"})},grid:{color:"#ffffff10"}}}}});}
+async function loadChart(){const id=$("chartCoin").value||"bitcoin",days=$("chartDays").value;const coin=coins.find(c=>c.id===id);$("chartTitle").textContent=`${coin?.symbol.toUpperCase()||id} / USD`;$("chartSubtitle").textContent=`${days==="1"?"24-hour":days+"-day"} price history · EMA, RSI, MACD and Bollinger calculations`;const result=await getJSON(`${API}/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=${days}`);chartPrices=(result.prices||[]).map(([x,y])=>({x:Number(x),y:Number(y)}));if(chartPrices.length<30)throw Error("Not enough historical points for all indicators");drawChart()}
+function research(id){const c=coins.find(x=>x.id===id);$("researchEmpty").hidden=!!c;$("researchContent").hidden=!c;if(!c)return;const cap=Number(c.market_cap),fdv=Number(c.fully_diluted_valuation),vol=Number(c.total_volume),cir=Number(c.circulating_supply),total=Number(c.total_supply),max=Number(c.max_supply),fdvRatio=cap>0&&fdv>0?fdv/cap:null,share=cir>0?(max>0?cir/max:total>0?cir/total:null):null,turn=cap>0?vol/cap:null;
+$("researchImage").src=c.image;$("researchName").textContent=c.name;$("researchSymbol").textContent=c.symbol.toUpperCase();$("rCap").textContent=money(cap);$("rFdv").textContent=money(fdv);$("rFdvRatio").textContent=fdvRatio?num(fdvRatio,2)+"x":"—";$("rTurnover").textContent=turn==null?"—":num(turn*100,2)+"%";$("rCirculating").textContent=supply(c.circulating_supply);$("rSupplyShare").textContent=share==null?"—":num(share*100,1)+"%";
+$("rRevenue").textContent="Not linked";$("rRevenueNote").textContent="Choose a protocol below to compare reported revenue";$("rMultiple").textContent="—";
+populateResearchProtocolOptions(c);
+const notes=[];if(fdvRatio!=null){if(fdvRatio>3)notes.push("Fully diluted valuation is more than three times current market cap. Check vesting, unlocks and future emissions.");else if(fdvRatio>1.5)notes.push("FDV is notably above market cap. Future supply growth could create selling pressure.");else notes.push("FDV is relatively close to current market cap, based on the reported supply fields.")}else notes.push("FDV data is missing or incomplete, so dilution cannot be assessed.");
+if(share!=null)notes.push(`${num(share*100,1)}% of the reported maximum or total supply is circulating. Confirm the token's unlock schedule independently.`);else notes.push("A circulating-supply percentage cannot be calculated from the available fields.");
+if(turn!=null)notes.push(`24-hour turnover is ${num(turn*100,2)}% of market cap. Trading volume is not the same as real liquidity.`);if(Math.abs(Number(c.price_change_percentage_24h||0))>15)notes.push("The 24-hour price move is unusually large; short-term volatility is elevated.");
+notes.push("Market capitalization is not intrinsic value. To judge whether a token is expensive, compare its valuation with real usage, fees, revenue, token-holder value capture, competitors and growth.");$("researchNotes").innerHTML=notes.map(n=>`<li>${safe(n)}</li>`).join("");$("valuationTag").textContent=fdvRatio==null?"Incomplete data":fdvRatio>3?"High dilution ratio":fdvRatio>1.5?"Elevated FDV":"FDV closer to market cap"}
+async function loadMarket(){const [market,global]=await Promise.all([getJSON(`${API}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${MARKET_LIMIT}&page=1&sparkline=false&price_change_percentage=24h`),getJSON(`${API}/global`)]);coins=market;updateGlobal(global.data);fillSelectors();renderMarkets();renderWatch();if($("researchCoin").value)research($("researchCoin").value)}
+async function refresh(show=false){if(busy)return;busy=true;$("status").textContent="Refreshing market data…";setConnection("Connecting…");try{await loadMarket();setConnection("Connected");$("status").textContent="Last updated: "+new Date().toLocaleTimeString();if(show)toast("Market data updated")}catch(e){console.error(e);setConnection("Connection issue");$("status").textContent=e.message;if(show)toast(e.message)}finally{busy=false}}
+function renderWallets(){const body=$("walletTable");body.innerHTML=trackedWallets.length?trackedWallets.map((w,i)=>`<tr><td><button class="wallet-address" data-wallet="${i}">${safe(w.address.slice(0,5)+"…"+w.address.slice(-5))}</button></td><td>${safe(w.label||"Unlabelled")}</td><td>${w.lastActivity?safe(new Date(w.lastActivity).toLocaleString()):"Not checked"}</td><td>${w.txCount??"—"}</td><td><button class="remove-button" data-wallet-remove="${i}">Remove</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">No wallets tracked yet.</td></tr>`}
+function validSolanaAddress(s){return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s)}
+async function refreshWallet(index){const w=trackedWallets[index];if(!w)return;const activity=$("walletActivity");activity.innerHTML='<span class="muted">Checking recent wallet activity…</span>';try{const sigs=await rpc("getSignaturesForAddress",[w.address,{limit:10}]);w.txCount=sigs.length;w.lastActivity=sigs[0]?.blockTime?new Date(sigs[0].blockTime*1000).toISOString():null;saveLocal();renderWallets();activeWallet=index;if(!sigs.length){activity.innerHTML='<span class="muted">No recent transactions returned by the RPC endpoint.</span>';return}activity.innerHTML=sigs.map(s=>`<div class="activity-item"><span>${s.blockTime?new Date(s.blockTime*1000).toLocaleString():"Time unavailable"} · ${s.err?"Failed":"Confirmed"}</span><span><a href="https://solscan.io/tx/${encodeURIComponent(s.signature)}" target="_blank" rel="noopener">View transaction ↗</a> · <span class="${s.err?"negative":"positive"}">${safe(s.signature.slice(0,10))}…</span></span></div>`).join("")}catch(e){activity.innerHTML=`<span class="muted">${safe(e.message)}. Try again later or configure a dedicated RPC endpoint.</span>`}}
 
-let coins = [];
-let btcChart = null;
-let isLoading = false;
-let lastChartUpdate = 0;
-let watchlist = [];
 
-const $ = id => document.getElementById(id);
-
-try {
-  const stored = JSON.parse(localStorage.getItem("cryptoRealityWatchlist") || "[]");
-  watchlist = Array.isArray(stored) ? stored.filter(item => typeof item === "string") : [];
-} catch {
-  watchlist = [];
-}
-
-/* FORMATTING */
-const number = (value, digits = 2) => {
-  const n = Number(value);
-  if (value == null || !Number.isFinite(n)) return "--";
-  return n.toLocaleString("en-US", { maximumFractionDigits: digits });
-};
-
-const money = value => {
-  const n = Number(value);
-  if (value == null || !Number.isFinite(n)) return "--";
-  return "$" + n.toLocaleString("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 2
+function populateResearchProtocolOptions(coin) {
+  const select=$("researchProtocolMatch");
+  if(!select)return;
+  const old=select.value;
+  const matches=protocolRows.filter(p=>{
+    const direct=p.gecko_id===coin.id;
+    const sameSymbol=String(p.symbol||"").toLowerCase()===String(coin.symbol||"").toLowerCase();
+    const nameMatch=String(p.name||"").toLowerCase()===String(coin.name||"").toLowerCase();
+    return direct||sameSymbol||nameMatch;
+  }).sort((a,b)=>{
+    const ad=a.gecko_id===coin.id?1:0,bd=b.gecko_id===coin.id?1:0;
+    return bd-ad||String(a.name).localeCompare(String(b.name));
   });
-};
-
-const price = value => {
-  const n = Number(value);
-  if (value == null || !Number.isFinite(n)) return "--";
-  return "$" + n.toLocaleString("en-US", {
-    minimumFractionDigits: n < 1 ? 4 : 2,
-    maximumFractionDigits: n < 1 ? 8 : 2
-  });
-};
-
-const percent = value => {
-  const n = Number(value);
-  if (value == null || !Number.isFinite(n)) return "--";
-  return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
-};
-
-const supply = value => {
-  const n = Number(value);
-  if (value == null || !Number.isFinite(n)) return "--";
-  return n.toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 3 });
-};
-
-const escapeHTML = value =>
-  String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
-  })[char]);
-
-/* NOTIFICATIONS */
-function showToast(message) {
-  const toast = $("toast");
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add("show");
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => toast.classList.remove("show"), 2600);
+  select.innerHTML='<option value="">Choose a matching protocol (optional)…</option>'+
+    matches.map(p=>`<option value="${safe(p.slug||p.module||p.name)}">${safe(p.name)} · ${safe(p.category||"Protocol")} · ${(p.chains||[]).length} networks</option>`).join("");
+  if(!matches.length)select.innerHTML+='<option value="" disabled>No obvious match found — use Protocol Research below</option>';
+  if(old&&matches.some(p=>(p.slug||p.module||p.name)===old))select.value=old;
 }
-
-/* DATE */
-if ($("currentDate")) {
-  $("currentDate").textContent = new Date().toLocaleDateString("en-US", {
-    weekday: "long", year: "numeric", month: "short", day: "numeric"
-  });
-}
-
-/* CONNECTION */
-function setConnection(status) {
-  if ($("connection")) $("connection").textContent = status;
-  const dot = $("connectionDot");
-  if (!dot) return;
-  dot.classList.remove("connected", "disconnected");
-  if (status === "Connected") dot.classList.add("connected");
-  if (status === "Connection issue") dot.classList.add("disconnected");
-}
-
-async function fetchJSON(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    if (response.status === 429) throw new Error("Rate limit reached. Try again shortly.");
-    throw new Error(`Request failed (${response.status})`);
-  }
-  return response.json();
-}
-
-/* GLOBAL MARKET */
-async function loadGlobalData() {
-  const result = await fetchJSON(`${API}/global`);
-  const data = result?.data;
-  if (!data) throw new Error("Global market data unavailable");
-
-  if ($("marketCap")) $("marketCap").textContent = money(data.total_market_cap?.usd);
-  if ($("volume")) $("volume").textContent = money(data.total_volume?.usd);
-  if ($("btcDominance")) {
-    $("btcDominance").textContent = `${Number(data.market_cap_percentage?.btc || 0).toFixed(1)}%`;
-  }
-
-  const change = Number(data.market_cap_change_percentage_24h_usd || 0);
-  if ($("marketCapChange")) {
-    $("marketCapChange").textContent = `${percent(change)} (24h)`;
-    $("marketCapChange").className = change >= 0 ? "positive" : "negative";
-  }
-}
-
-/* MARKET TABLE */
-function renderCoins(list) {
-  const table = $("coinTable");
-  if (!table) return;
-
-  if (!list.length) {
-    table.innerHTML = `<tr><td colspan="7" class="table-message">No assets match your search.</td></tr>`;
-    if ($("marketCount")) $("marketCount").textContent = "0 assets";
-    return;
-  }
-
-  table.innerHTML = list.map(coin => {
-    const change = Number(coin.price_change_percentage_24h || 0);
-    const saved = watchlist.includes(coin.id);
-    return `
-      <tr>
-        <td>${coin.market_cap_rank ?? "--"}</td>
-        <td>
-          <div class="coin-info">
-            <img src="${escapeHTML(coin.image)}" alt="" loading="lazy" onerror="this.style.display='none'">
-            <div class="coin-info-text">
-              <strong>${escapeHTML(coin.name)}</strong>
-              <small>${escapeHTML(coin.symbol).toUpperCase()}</small>
-            </div>
-          </div>
-        </td>
-        <td class="price-cell">${price(coin.current_price)}</td>
-        <td class="${change >= 0 ? "positive" : "negative"}">${percent(change)}</td>
-        <td class="price-cell">${money(coin.market_cap)}</td>
-        <td class="price-cell">${money(coin.total_volume)}</td>
-        <td>
-          <button class="watch-button ${saved ? "saved" : ""}" data-watch="${escapeHTML(coin.id)}"
-            aria-label="${saved ? "Remove from" : "Add to"} watchlist"
-            title="${saved ? "Remove from watchlist" : "Add to watchlist"}">${saved ? "鈽�" : "鈽�"}</button>
-        </td>
-      </tr>`;
-  }).join("");
-
-  if ($("marketCount")) $("marketCount").textContent = `${list.length} assets`;
-}
-
-function updateMarketDisplay() {
-  const query = $("searchInput")?.value.trim().toLowerCase() || "";
-  const filtered = coins.filter(coin =>
-    String(coin.name || "").toLowerCase().includes(query) ||
-    String(coin.symbol || "").toLowerCase().includes(query)
-  );
-  renderCoins(filtered);
-}
-
-$("searchInput")?.addEventListener("input", updateMarketDisplay);
-
-/* WATCHLIST */
-function saveWatchlist() {
+async function loadAssetRevenueComparison(slug) {
+  const coin=coins.find(c=>c.id===$("researchCoin").value);
+  const protocol=protocolRows.find(p=>protocolKey(p.slug||p.module||p.name)===protocolKey(slug));
+  if(!coin||!protocol)return;
+  $("rRevenue").textContent="Loading…";
+  $("rRevenueNote").textContent=`Checking ${protocol.name} revenue data`;
+  $("rMultiple").textContent="—";
   try {
-    localStorage.setItem("cryptoRealityWatchlist", JSON.stringify(watchlist));
-  } catch (error) {
-    console.error("Watchlist storage error:", error);
-    showToast("Could not save the watchlist on this device");
+    const result=await getJSON(`${LLAMA_API}/summary/fees/${encodeURIComponent(protocol.slug||protocol.module)}?dataType=dailyRevenue`);
+    if($("researchCoin").value!==coin.id||$("researchProtocolMatch").value!==slug)return;
+    const daily=Number(result.total24h);
+    if(!Number.isFinite(daily)||daily<=0){
+      $("rRevenue").textContent="Not reported";
+      $("rRevenueNote").textContent=`No positive 24h revenue figure reported for ${protocol.name}`;
+      $("rMultiple").textContent="—";
+      return;
+    }
+    $("rRevenue").textContent=money(daily);
+    $("rRevenueNote").textContent=`${protocol.name} · reported 24h protocol revenue`;
+    $("rMultiple").textContent=coin.market_cap>0?num(coin.market_cap/(daily*365),2)+"x":"—";
+    const note=`${protocol.name} reports ${money(daily)} in 24h protocol revenue. A simple annualized run-rate is ${money(daily*365)}; the market-cap multiple is contextual and does not mean revenue flows to ${coin.symbol.toUpperCase()} holders.`;
+    $("researchNotes").innerHTML+=`<li>${safe(note)}</li>`;
+  } catch(error) {
+    $("rRevenue").textContent="Unavailable";
+    $("rRevenueNote").textContent="The protocol revenue endpoint could not be reached";
+    $("rMultiple").textContent="—";
   }
 }
 
-function renderWatchlist() {
-  const table = $("watchlistTable");
-  if (!table) return;
+/* MULTI-CHAIN PROTOCOL RESEARCH */
+const LLAMA_API = "https://api.llama.fi";
+let protocolRows = [], feeRows = [], activeProtocol = null;
 
-  const savedCoins = watchlist.map(id => coins.find(coin => coin.id === id)).filter(Boolean);
-  if (!savedCoins.length) {
-    table.innerHTML = `<tr><td colspan="5" class="table-message">Your watchlist is empty. Add assets from Markets.</td></tr>`;
-    return;
-  }
-
-  table.innerHTML = savedCoins.map(coin => {
-    const change = Number(coin.price_change_percentage_24h || 0);
-    return `
-      <tr>
-        <td><div class="coin-info">
-          <img src="${escapeHTML(coin.image)}" alt="" loading="lazy" onerror="this.style.display='none'">
-          <div class="coin-info-text"><strong>${escapeHTML(coin.name)}</strong><small>${escapeHTML(coin.symbol).toUpperCase()}</small></div>
-        </div></td>
-        <td class="price-cell">${price(coin.current_price)}</td>
-        <td class="${change >= 0 ? "positive" : "negative"}">${percent(change)}</td>
-        <td class="price-cell">${money(coin.market_cap)}</td>
-        <td><button class="remove-button" data-remove="${escapeHTML(coin.id)}">Remove</button></td>
-      </tr>`;
-  }).join("");
-}
-
-function toggleWatchlist(id) {
-  if (watchlist.includes(id)) {
-    watchlist = watchlist.filter(item => item !== id);
-    showToast("Removed from watchlist");
-  } else {
-    watchlist.push(id);
-    showToast("Added to watchlist");
-  }
-  saveWatchlist();
-  updateMarketDisplay();
-  renderWatchlist();
-}
-
-$("coinTable")?.addEventListener("click", event => {
-  const button = event.target.closest("[data-watch]");
-  if (button) toggleWatchlist(button.dataset.watch);
-});
-
-$("watchlistTable")?.addEventListener("click", event => {
-  const button = event.target.closest("[data-remove]");
-  if (button) toggleWatchlist(button.dataset.remove);
-});
-
-/* BITCOIN CHART */
-async function loadBitcoinChart() {
-  const result = await fetchJSON(`${API}/coins/bitcoin/market_chart?vs_currency=usd&days=7`);
-  const points = result.prices || [];
-  if (!points.length) throw new Error("No Bitcoin chart data");
-
-  const canvas = $("btcChart");
-  if (!canvas) return;
-
-  const chartData = points.map(([timestamp, value]) => ({ x: Number(timestamp), y: Number(value) }));
-  const ctx = canvas.getContext("2d");
-  const gradient = ctx.createLinearGradient(0, 0, 0, 320);
-  gradient.addColorStop(0, "rgba(84, 134, 200, 0.22)");
-  gradient.addColorStop(0.72, "rgba(84, 134, 200, 0.04)");
-  gradient.addColorStop(1, "rgba(84, 134, 200, 0)");
-
-  if (btcChart) {
-    btcChart.data.datasets[0].data = chartData;
-    btcChart.data.datasets[0].backgroundColor = gradient;
-    btcChart.update("none");
-  } else {
-    btcChart = new Chart(ctx, {
-      type: "line",
-      data: {
-        datasets: [{
-          label: "BTC / USD", data: chartData, parsing: false,
-          borderColor: "#5486c8", backgroundColor: gradient,
-          borderWidth: 2.2, fill: true, tension: 0.3,
-          pointRadius: 0, pointHoverRadius: 4,
-          pointHoverBackgroundColor: "#ffffff",
-          pointHoverBorderColor: "#5486c8", pointHoverBorderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, normalized: true,
-        animation: { duration: 350 },
-        interaction: { intersect: false, mode: "nearest", axis: "x" },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "#101827", titleColor: "#ffffff", bodyColor: "#ffffff",
-            borderColor: "#5486c8", borderWidth: 1, padding: 11, displayColors: false,
-            callbacks: {
-              title: items => new Date(items[0].parsed.x).toLocaleString("en-US", {
-                month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
-              }),
-              label: context => price(context.parsed.y)
-            }
-          }
-        },
-        scales: {
-          x: {
-            type: "linear", grid: { display: false }, border: { display: false },
-            ticks: {
-              color: "#8792a3", maxTicksLimit: 7, maxRotation: 0,
-              callback: value => new Date(Number(value)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-              font: { size: 10 }
-            }
-          },
-          y: {
-            position: "right", border: { display: false },
-            grid: { color: "rgba(135,146,163,.12)", drawTicks: false },
-            ticks: {
-              color: "#8792a3", padding: 10, maxTicksLimit: 6,
-              callback: value => "$" + Number(value).toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 2 }),
-              font: { size: 10 }
-            }
-          }
-        }
-      }
-    });
-  }
-  lastChartUpdate = Date.now();
-}
-
-function updateBitcoinPrice() {
-  const bitcoin = coins.find(coin => coin.id === "bitcoin");
-  if (!bitcoin) return;
-  if ($("btcPrice")) $("btcPrice").textContent = price(bitcoin.current_price);
-  const change = Number(bitcoin.price_change_percentage_24h || 0);
-  if ($("btcChange")) {
-    $("btcChange").textContent = percent(change);
-    $("btcChange").className = change >= 0 ? "positive" : "negative";
-  }
-}
-
-/* PROJECT ANALYSIS */
-function fillAnalysisSelector() {
-  const select = $("analysisSelect");
-  if (!select) return;
-  const current = select.value;
-  select.innerHTML = `<option value="">Choose an asset...</option>` +
-    coins.map(coin => `<option value="${escapeHTML(coin.id)}">${escapeHTML(coin.name)} (${escapeHTML(coin.symbol.toUpperCase())})</option>`).join("");
-  if (coins.some(coin => coin.id === current)) select.value = current;
-}
-
-function assessCoin(coin) {
-  const cap = Number(coin.market_cap);
-  const fdv = Number(coin.fully_diluted_valuation);
-  const volume = Number(coin.total_volume);
-  const change = Math.abs(Number(coin.price_change_percentage_24h || 0));
-  const circulating = Number(coin.circulating_supply);
-  const total = Number(coin.total_supply);
-  const max = Number(coin.max_supply);
-
-  const hasCap = Number.isFinite(cap) && cap > 0;
-  const hasFDV = Number.isFinite(fdv) && fdv > 0 && hasCap;
-  const hasVolume = Number.isFinite(volume) && volume >= 0 && hasCap;
-
-  const fdvPremium = hasFDV ? Math.max(0, (fdv / cap - 1) * 100) : null;
-  const turnover = hasVolume ? volume / cap * 100 : null;
-  const circulatingShare = Number.isFinite(circulating) && circulating > 0
-    ? (Number.isFinite(max) && max > 0 ? circulating / max * 100
-      : Number.isFinite(total) && total > 0 ? circulating / total * 100 : null)
-    : null;
-
-  let score = 50;
-  let factors = 0;
-  const notes = [];
-
-  if (fdvPremium !== null) {
-    factors++;
-    if (fdvPremium <= 20) { score += 15; notes.push("The FDV premium is relatively limited compared with the current market cap."); }
-    else if (fdvPremium <= 75) { score += 5; notes.push("FDV is moderately above market cap; future token supply may affect valuation."); }
-    else if (fdvPremium <= 200) { score -= 10; notes.push("FDV is considerably higher than market cap. Check future unlocks and circulating supply."); }
-    else { score -= 20; notes.push("FDV is far above market cap, which points to substantial dilution exposure."); }
-  } else {
-    notes.push("FDV data is missing, so dilution exposure cannot be assessed.");
-  }
-
-  if (turnover !== null) {
-    factors++;
-    if (turnover >= 5 && turnover <= 100) { score += 10; notes.push("Reported 24h trading volume is meaningful relative to market cap."); }
-    else if (turnover > 100) { score -= 5; notes.push("Reported turnover is unusually high. Verify volume quality across exchanges."); }
-    else if (turnover < 1) { score -= 10; notes.push("Reported trading volume is low relative to market cap."); }
-    else { notes.push("Trading turnover is within a middle range."); }
-  } else {
-    notes.push("Trading volume data is unavailable.");
-  }
-
-  if (circulatingShare !== null) {
-    factors++;
-    if (circulatingShare >= 70) { score += 10; notes.push("A large share of the stated supply is already circulating."); }
-    else if (circulatingShare >= 40) { score += 2; notes.push("A meaningful portion of the stated supply remains outside circulation."); }
-    else { score -= 12; notes.push("A relatively small share of the stated supply is circulating; review emissions and unlock schedules."); }
-  } else {
-    notes.push("Circulating-supply share cannot be calculated from the available supply fields.");
-  }
-
-  if (Number.isFinite(change)) {
-    factors++;
-    if (change > 25) { score -= 8; notes.push("The 24h price move is unusually large and may indicate elevated short-term volatility."); }
-    else if (change > 12) { score -= 3; notes.push("The 24h price move is elevated."); }
-  }
-
-  score = Math.max(0, Math.min(100, Math.round(score)));
-  let status = "Insufficient Data";
-  let statusClass = "unknown";
-
-  if (factors >= 2) {
-    if (score >= 70) { status = "Lower Market Risk"; statusClass = "low"; }
-    else if (score >= 45) { status = "Moderate Market Risk"; statusClass = "moderate"; }
-    else { status = "Higher Market Risk"; statusClass = "high"; }
-  }
-
-  if (!hasCap) notes.unshift("Market capitalization is unavailable; this assessment is incomplete.");
-  notes.push("This score summarizes selected market-data signals. It is not a fair-value estimate or a measure of team, product or business quality.");
-
-  return { score, status, statusClass, fdvPremium, turnover, circulatingShare, notes, factors };
-}
-
-function renderProjectAnalysis(id) {
-  const coin = coins.find(item => item.id === id);
-  const empty = $("analysisEmpty");
-  const content = $("analysisContent");
-  if (!coin) {
-    if (empty) empty.hidden = false;
-    if (content) content.hidden = true;
-    return;
-  }
-
-  const assessment = assessCoin(coin);
-  if (empty) empty.hidden = true;
-  if (content) content.hidden = false;
-
-  $("analysisImage").src = coin.image || "";
-  $("analysisName").textContent = coin.name;
-  $("analysisSymbol").textContent = coin.symbol.toUpperCase();
-
-  const status = $("valuationStatus");
-  status.textContent = assessment.status;
-  status.className = `risk-status ${assessment.statusClass}`;
-
-  $("projectScore").textContent = `${assessment.score}/100`;
-  $("analysisMarketCap").textContent = money(coin.market_cap);
-  $("fdvRatio").textContent = assessment.fdvPremium === null ? "--" : `${number(assessment.fdvPremium, 1)}%`;
-  $("volumeRatio").textContent = assessment.turnover === null ? "--" : `${number(assessment.turnover, 2)}%`;
-
-  $("circulatingSupply").textContent = supply(coin.circulating_supply);
-  $("totalSupply").textContent = supply(coin.total_supply);
-  $("maxSupply").textContent = supply(coin.max_supply);
-  $("fullyDilutedValue").textContent = money(coin.fully_diluted_valuation);
-
-  const change = Number(coin.price_change_percentage_24h || 0);
-  $("analysisChange").textContent = percent(change);
-  $("analysisChange").className = change >= 0 ? "positive" : "negative";
-  $("analysisVolume").textContent = money(coin.total_volume);
-  $("fdvPremium").textContent = assessment.fdvPremium === null ? "--" : `${number(assessment.fdvPremium, 1)}%`;
-  $("analysisRank").textContent = coin.market_cap_rank ? `#${coin.market_cap_rank}` : "--";
-
-  $("assessmentList").innerHTML = assessment.notes.map(note => `<li>${escapeHTML(note)}</li>`).join("");
-}
-
-$("analysisSelect")?.addEventListener("change", event => renderProjectAnalysis(event.target.value));
-
-/* LOAD MARKET DATA */
-async function loadCoins() {
-  const data = await fetchJSON(
-    `${API}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${MARKET_LIMIT}&page=1&sparkline=false&price_change_percentage=24h`
-  );
-  if (!Array.isArray(data) || !data.length) throw new Error("Coin market data unavailable");
-
-  coins = data;
-  if ($("coinCount")) $("coinCount").textContent = coins.length;
-  updateMarketDisplay();
-  renderWatchlist();
-
-  const selected = $("analysisSelect")?.value || "";
-  fillAnalysisSelector();
-  if (selected && coins.some(coin => coin.id === selected)) {
-    $("analysisSelect").value = selected;
-    renderProjectAnalysis(selected);
-  } else if (selected) {
-    renderProjectAnalysis("");
-  }
-  updateBitcoinPrice();
-}
-
-/* DASHBOARD REFRESH */
-async function loadDashboard(showMessage = false) {
-  if (isLoading) return;
-  isLoading = true;
-
-  if ($("status")) $("status").textContent = "Updating market data...";
-  setConnection("Connecting...");
-
-  const tasks = [loadCoins(), loadGlobalData()];
-  const chartIsDue = !lastChartUpdate || Date.now() - lastChartUpdate >= CHART_REFRESH_INTERVAL;
-  if (chartIsDue) tasks.push(loadBitcoinChart());
-
-  const results = await Promise.allSettled(tasks);
-  const coinsLoaded = results[0].status === "fulfilled";
-  const globalLoaded = results[1].status === "fulfilled";
-  const chartLoaded = chartIsDue ? results[2].status === "fulfilled" : true;
-
-  results.forEach(result => {
-    if (result.status === "rejected") console.error("Dashboard update error:", result.reason);
+const protocolKey = value => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+const protocolRevenue = p => {
+  const v = Number(p?.total24h ?? p?.total24hRevenue ?? p?.revenue24h);
+  return Number.isFinite(v) && v >= 0 ? v : null;
+};
+const protocolTVL = p => {
+  const v = Number(p?.tvl);
+  return Number.isFinite(v) && v >= 0 ? v : null;
+};
+function mergeProtocolData(protocols, revenues) {
+  const revenueMap = new Map();
+  (revenues || []).forEach(item => {
+    [item.slug, item.name, item.module, item.id].filter(Boolean).forEach(k => revenueMap.set(protocolKey(k), item));
   });
-
-  if (coinsLoaded || globalLoaded) {
-    setConnection("Connected");
-    if ($("status")) $("status").textContent = `Last updated: ${new Date().toLocaleTimeString("en-US")}`;
-  } else {
-    setConnection("Connection issue");
-    if ($("status")) $("status").textContent = "Update failed. Check your connection and try again.";
-  }
-
-  if (!chartLoaded) console.warn("Bitcoin chart update failed.");
-  if (showMessage) {
-    showToast(coinsLoaded && globalLoaded ? "Market data updated" : "Some market data could not be updated");
-  }
-  isLoading = false;
-}
-
-/* CONTROLS */
-$("refreshBtn")?.addEventListener("click", () => loadDashboard(true));
-$("refreshMarket")?.addEventListener("click", () => loadDashboard(true));
-
-$("menuBtn")?.addEventListener("click", () => $("sidebar")?.classList.toggle("open"));
-
-document.querySelectorAll(".nav-item").forEach(link => {
-  link.addEventListener("click", () => {
-    document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
-    if (link.hash) {
-      document.querySelectorAll(`.nav-item[href="${link.hash}"]`).forEach(item => item.classList.add("active"));
+  return (protocols || []).map(p => {
+    const candidates = [p.slug, p.name, p.module, p.id].filter(Boolean);
+    let revenue = null;
+    for (const candidate of candidates) {
+      revenue = revenueMap.get(protocolKey(candidate));
+      if (revenue) break;
     }
-    $("sidebar")?.classList.remove("open");
+    return {...p, revenue24h: protocolRevenue(revenue), revenueSource: revenue || null};
   });
-});
-
-/* INITIAL LOAD */
-loadDashboard();
-setInterval(() => loadDashboard(), REFRESH_INTERVAL);
-/* Crypto Reality — Fundamentals module
-   Adds: revenue/fees, valuation multiples, verdict, holder concentration.
-   Load AFTER script.js. Uses globals from script.js: $, coins, fetchJSON, money, number, escapeHTML */
-(() => {
-  const LLAMA = "https://api.llama.fi";
-  const cache = {};
-  let token = 0;
-
-  const cached = async (key, url, ttl = 600000) => {
-    const c = cache[key];
-    if (c && Date.now() - c.t < ttl) return c.d;
-    const d = await fetchJSON(url);
-    cache[key] = { t: Date.now(), d };
-    return d;
-  };
-  const safe = p => p.catch(e => { console.warn("Fundamentals:", e.message); return null; });
-
-  /* ---------- Revenue / fees (DefiLlama) ---------- */
-  function findEntry(list, coin, protocol) {
-    if (!list) return null;
-    const name = (protocol?.name || coin.name || "").toLowerCase();
-    return list.find(p => p.gecko_id === coin.id)
-      || (protocol && list.find(p => p.slug === protocol.slug))
-      || list.find(p => String(p.name || "").toLowerCase() === name) || null;
-  }
-
-  async function loadRevenue(coin) {
-    const [protocols, fees, rev] = await Promise.all([
-      safe(cached("protocols", `${LLAMA}/protocols`)),
-      safe(cached("fees", `${LLAMA}/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`)),
-      safe(cached("rev", `${LLAMA}/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue`))
+}
+function populateProtocolFilters() {
+  const chains = [...new Set(protocolRows.flatMap(p => p.chains || []))].sort((a,b)=>a.localeCompare(b));
+  const categories = [...new Set(protocolRows.map(p=>p.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const chainSelect = $("protocolChain"), categorySelect = $("protocolCategory");
+  const oldChain = chainSelect.value, oldCategory = categorySelect.value;
+  chainSelect.innerHTML = '<option value="all">All networks</option>' + chains.map(c=>`<option value="${safe(c)}">${safe(c)}</option>`).join("");
+  categorySelect.innerHTML = '<option value="all">All categories</option>' + categories.map(c=>`<option value="${safe(c)}">${safe(c)}</option>`).join("");
+  if (chains.includes(oldChain)) chainSelect.value = oldChain;
+  if (categories.includes(oldCategory)) categorySelect.value = oldCategory;
+  $("protocolCount").textContent = protocolRows.length.toLocaleString("en-US");
+  $("chainCount").textContent = chains.length.toLocaleString("en-US");
+  const revTotal = feeRows.reduce((sum,p)=>sum+(protocolRevenue(p)||0),0);
+  $("protocolRevenueTotal").textContent = money(revTotal);
+}
+function renderProtocolTable() {
+  const q = $("protocolSearch").value.trim().toLowerCase();
+  const chain = $("protocolChain").value, category = $("protocolCategory").value, sort = $("protocolSort").value;
+  let list = protocolRows.filter(p => {
+    const matchesText = !q || [p.name,p.symbol,p.category].some(v=>String(v||"").toLowerCase().includes(q));
+    const matchesChain = chain === "all" || (p.chains||[]).includes(chain);
+    const matchesCategory = category === "all" || p.category === category;
+    return matchesText && matchesChain && matchesCategory;
+  });
+  if(sort==="revenue") list.sort((a,b)=>(b.revenue24h??-1)-(a.revenue24h??-1));
+  else if(sort==="name") list.sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  else list.sort((a,b)=>(protocolTVL(b)??-1)-(protocolTVL(a)??-1));
+  const body=$("protocolTable");
+  body.innerHTML=list.length?list.slice(0,250).map(p=>{
+    const key=safe(p.slug||p.module||p.name);
+    const selected=activeProtocol && protocolKey(activeProtocol.slug||activeProtocol.module||activeProtocol.name)===protocolKey(key);
+    const ch=Number(p.change_1d);
+    return `<tr data-protocol="${key}" class="${selected?"selected":""}">
+      <td><div class="protocol-name-cell"><strong>${safe(p.name)}</strong><small>${safe(p.symbol||p.category||"Protocol")}</small></div></td>
+      <td>${safe(p.category||"—")}</td>
+      <td><span class="chain-count">${(p.chains||[]).length} networks</span></td>
+      <td>${money(p.tvl)}</td>
+      <td>${p.revenue24h==null?"—":money(p.revenue24h)}</td>
+      <td class="${Number.isFinite(ch)?(ch>=0?"positive":"negative"):""}">${Number.isFinite(ch)?pct(ch):"—"}</td>
+    </tr>`;
+  }).join(""):`<tr><td colspan="6" class="protocol-row-empty">No protocols match these filters.</td></tr>`;
+  $("protocolStatus").textContent=`Showing ${Math.min(list.length,250).toLocaleString("en-US")} of ${list.length.toLocaleString("en-US")} matching protocols`;
+}
+async function loadProtocolDirectory(showToast=false) {
+  $("protocolStatus").textContent="Loading TVL and revenue data…";
+  try {
+    const [protocolResult,revenueResult] = await Promise.all([
+      getJSON(`${LLAMA_API}/protocols`),
+      getJSON(`${LLAMA_API}/overview/fees?dataType=dailyRevenue&excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`)
     ]);
-    const proto = protocols?.find(p => p.gecko_id === coin.id) || null;
-    const f = findEntry(fees?.protocols, coin, proto);
-    const r = findEntry(rev?.protocols, coin, proto);
-    const ann = v => (Number(v) > 0 ? Number(v) / 30 * 365 : null); // 30d -> annualized
-    return {
-      tvl: proto ? Number(proto.tvl) || null : null,
-      category: proto?.category || f?.category || null,
-      annFees: ann(f?.total30d),
-      annRevenue: ann(r?.total30d),
-      found: !!(proto || f || r)
-    };
+    protocolRows=mergeProtocolData(protocolResult,revenueResult.protocols||[]);
+    feeRows=revenueResult.protocols||[];
+    populateProtocolFilters();
+    renderProtocolTable();
+    const selectedAsset=coins.find(c=>c.id===$("researchCoin").value);
+    if(selectedAsset)populateResearchProtocolOptions(selectedAsset);
+    $("protocolStatus").textContent=`Updated ${new Date().toLocaleTimeString("en-US")} · ${protocolRows.length.toLocaleString("en-US")} protocols`;
+    if(showToast)toast("Protocol research updated");
+  } catch(error) {
+    console.error("Protocol research error:",error);
+    $("protocolStatus").textContent=`Protocol data unavailable: ${error.message}`;
+    $("protocolTable").innerHTML='<tr><td colspan="6" class="protocol-row-empty">Protocol data could not be loaded. Check the connection or try again later.</td></tr>';
+    if(showToast)toast("Protocol data could not be refreshed");
   }
-
-  /* ---------- Holder concentration (Ethplorer, ERC-20 only) ---------- */
-  async function loadHolders(coin) {
-    const d = await safe(cached("detail_" + coin.id,
-      `${API}/coins/${coin.id}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false`, 3600000));
-    const addr = d?.platforms?.ethereum;
-    if (!addr) return { supported: false };
-    const h = await safe(cached("holders_" + addr,
-      `https://api.ethplorer.io/getTopTokenHolders/${addr}?apiKey=freekey&limit=100`, 1800000));
-    const list = h?.holders;
-    if (!Array.isArray(list) || !list.length) return { supported: true, failed: true };
-    const sum = n => list.slice(0, n).reduce((s, x) => s + (Number(x.share) || 0), 0);
-    return { supported: true, top1: sum(1), top10: sum(10), top100: sum(100), count: list.length };
-  }
-
-  /* ---------- Valuation verdict ---------- */
-  function verdict(coin, rv) {
-    const cap = Number(coin.market_cap), fdv = Number(coin.fully_diluted_valuation);
-    const ps = rv.annRevenue ? cap / rv.annRevenue : null;
-    const pf = rv.annFees ? cap / rv.annFees : null;
-    const tvlR = rv.tvl ? cap / rv.tvl : null;
-    const fdvPrem = fdv > 0 && cap > 0 ? (fdv / cap - 1) * 100 : null;
-    const notes = [];
-    let points = 0, n = 0;
-
-    if (ps !== null) {
-      n++;
-      if (ps <= 25) { points += 1; notes.push(`Market cap is ${number(ps, 1)}x annualized protocol revenue — in line with mature cash-generating assets.`); }
-      else if (ps <= 100) { notes.push(`Market cap is ${number(ps, 1)}x annualized revenue — a growth premium; the market is pricing future growth.`); }
-      else { points -= 1; notes.push(`Market cap is ${number(ps, 0)}x annualized revenue — very high; the price depends on large future growth.`); }
-    } else if (pf !== null) {
-      n++;
-      if (pf <= 25) { points += 1; notes.push(`Market cap is ${number(pf, 1)}x annualized fees generated.`); }
-      else if (pf <= 100) { notes.push(`Market cap is ${number(pf, 1)}x annualized fees — a growth premium.`); }
-      else { points -= 1; notes.push(`Market cap is ${number(pf, 0)}x annualized fees — high relative to activity.`); }
-    }
-    if (tvlR !== null) {
-      n++;
-      if (tvlR <= 1) { points += 1; notes.push(`Market cap / TVL is ${number(tvlR, 2)} — valued at or below the capital it secures.`); }
-      else if (tvlR > 5) { points -= 1; notes.push(`Market cap / TVL is ${number(tvlR, 1)} — valued far above the capital locked in the protocol.`); }
-    }
-    if (fdvPrem !== null && fdvPrem > 100) { points -= 1; n++; notes.push(`FDV is ${number(fdvPrem, 0)}% above market cap — future unlocks can dilute holders.`); }
-
-    if (!n) return { label: "Not measurable by cash flow", cls: "unknown", notes: ["No revenue, fees or TVL data found. Assets such as BTC, meme coins or pure store-of-value tokens are priced on adoption and narrative, not cash flow — so 'justified or exaggerated' cannot be computed here."], ps, pf, tvlR };
-    if (points >= 1) return { label: "Largely supported by fundamentals", cls: "low", notes, ps, pf, tvlR };
-    if (points === 0) return { label: "Premium valuation", cls: "moderate", notes, ps, pf, tvlR };
-    return { label: "Looks stretched vs. fundamentals", cls: "high", notes, ps, pf, tvlR };
-  }
-
-  /* ---------- Rendering ---------- */
-  const mult = v => (v === null ? "--" : number(v, v < 10 ? 2 : 1) + "x");
-  const pct = v => (v === null || v === undefined ? "--" : number(v, 2) + "%");
-
-  function concentrationHTML(h) {
-    if (!h.supported) return `<p class="fund-note">Holder concentration is available for Ethereum ERC-20 tokens only. This asset has no Ethereum contract in the data source (native chains such as BTC, SOL or BNB need a chain-specific explorer).</p>`;
-    if (h.failed) return `<p class="fund-note">Holder data could not be loaded right now (rate limit or no data). Try again shortly.</p>`;
-    const cls = h.top10 > 70 ? "high" : h.top10 > 40 ? "moderate" : "low";
-    const label = { high: "High concentration", moderate: "Moderate concentration", low: "Distributed" }[cls];
-    return `
-      <div class="fund-grid">
-        <div class="fund-card"><span>Top 1 holder</span><strong>${pct(h.top1)}</strong></div>
-        <div class="fund-card"><span>Top 10 holders</span><strong>${pct(h.top10)}</strong></div>
-        <div class="fund-card"><span>Top ${h.count} holders</span><strong>${pct(h.top100)}</strong></div>
-        <div class="fund-card"><span>Assessment</span><strong class="fund-tag ${cls}">${label}</strong></div>
-      </div>
-      <p class="fund-note">Top holders include exchanges, staking/vesting contracts and burn addresses, so high numbers are not automatically whale risk. Check the largest addresses on Etherscan before drawing conclusions.</p>`;
-  }
-
-  function render(coin, rv, v, h) {
-    const host = ensureHost();
-    host.innerHTML = `
-      <div class="fund-head">
-        <h4>Fundamental valuation check</h4>
-        <span class="risk-status ${v.cls}">${escapeHTML(v.label)}</span>
-      </div>
-      <div class="fund-grid">
-        <div class="fund-card"><span>Annualized revenue</span><strong>${money(rv.annRevenue)}</strong><small>30-day protocol revenue × 12.2</small></div>
-        <div class="fund-card"><span>Annualized fees</span><strong>${money(rv.annFees)}</strong><small>Total fees paid by users</small></div>
-        <div class="fund-card"><span>Market cap / revenue</span><strong>${mult(v.ps)}</strong><small>Price-to-sales style multiple</small></div>
-        <div class="fund-card"><span>Market cap / TVL</span><strong>${mult(v.tvlR)}</strong><small>${rv.tvl ? "TVL " + money(rv.tvl) : "No TVL reported"}</small></div>
-      </div>
-      <ul class="fund-notes">${v.notes.map(n => `<li>${escapeHTML(n)}</li>`).join("")}</ul>
-      <h4 class="fund-sub">Wallet concentration</h4>
-      ${concentrationHTML(h)}
-      <p class="fund-note">Sources: DefiLlama (revenue, fees, TVL), Ethplorer (holders), CoinGecko (prices, supply). Multiples are relative benchmarks, not a fair-value price, and not investment advice.</p>`;
-  }
-
-  function ensureHost() {
-    let el = $("fundamentals");
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "fundamentals";
-      el.className = "fund-panel";
-      const anchor = document.querySelector(".data-limit-note");
-      anchor.parentNode.insertBefore(el, anchor);
-    }
-    return el;
-  }
-
-  async function run(id) {
-    const my = ++token;
-    if (!id) return;
-    const coin = coins.find(c => c.id === id);
-    if (!coin) return;
-    ensureHost().innerHTML = `<p class="fund-note">Loading revenue and holder data...</p>`;
-    const [rv, h] = await Promise.all([
-      loadRevenue(coin).catch(() => ({ found: false })),
-      loadHolders(coin).catch(() => ({ supported: true, failed: true }))
+}
+async function selectProtocol(key) {
+  const p=protocolRows.find(x=>protocolKey(x.slug||x.module||x.name)===protocolKey(key));
+  if(!p)return;
+  activeProtocol=p;
+  renderProtocolTable();
+  $("protocolDetailName").textContent=p.name||"Protocol";
+  $("protocolDetailDescription").textContent=p.description||"Review reported TVL and financial activity. Project-to-token links should be verified before drawing valuation conclusions.";
+  $("protocolDetailCategory").textContent=p.category||"Protocol";
+  $("pdTvl").textContent=money(p.tvl);
+  $("pdFees").textContent="Loading…";
+  $("pdRevenue").textContent=p.revenue24h==null?"Not reported":money(p.revenue24h);
+  $("pdHolderRevenue").textContent="Loading…";
+  $("pdAnnualRevenue").textContent=p.revenue24h==null?"—":money(p.revenue24h*365);
+  $("protocolChains").innerHTML=(p.chains||[]).length?p.chains.map(c=>`<span class="chain-pill">${safe(c)}</span>`).join(""):'<span class="muted">No network data reported.</span>';
+  const notes=[];
+  if(p.revenue24h==null)notes.push("No 24-hour protocol revenue figure was returned for this entry. Missing data is not zero revenue.");
+  else notes.push("Reported revenue is a protocol-level metric. It does not prove that the associated token captures that value.");
+  notes.push("Fees are amounts paid by users; protocol revenue is the portion retained by the protocol; holder revenue is value distributed to token holders.");
+  notes.push("TVL measures assets deposited in the protocol. It is not company revenue, token market capitalization or proof of solvency.");
+  $("protocolNotes").innerHTML=notes.map(n=>`<li>${safe(n)}</li>`).join("");
+  $("pdMultiple").textContent="Not mapped";
+  try {
+    const slug=p.slug||p.module;
+    if(!slug)throw Error("Protocol slug unavailable");
+    const [fees,revenue,holderRevenue]=await Promise.all([
+      getJSON(`${LLAMA_API}/summary/fees/${encodeURIComponent(slug)}?dataType=dailyFees`),
+      getJSON(`${LLAMA_API}/summary/fees/${encodeURIComponent(slug)}?dataType=dailyRevenue`),
+      getJSON(`${LLAMA_API}/summary/fees/${encodeURIComponent(slug)}?dataType=dailyHoldersRevenue`)
     ]);
-    if (my !== token) return; // user switched asset meanwhile
-    render(coin, rv, verdict(coin, rv), h);
+    if(activeProtocol!==p)return;
+    $("pdFees").textContent=fees.total24h==null?"Not reported":money(fees.total24h);
+    $("pdRevenue").textContent=revenue.total24h==null?"Not reported":money(revenue.total24h);
+    $("pdHolderRevenue").textContent=holderRevenue.total24h==null?"Not reported":money(holderRevenue.total24h);
+    const daily=Number(revenue.total24h);
+    $("pdAnnualRevenue").textContent=Number.isFinite(daily)&&daily>0?money(daily*365):"—";
+    const geckoId=p.gecko_id||revenue.gecko_id||fees.gecko_id;
+    const token=geckoId?coins.find(c=>c.id===geckoId):null;
+    if(token&&daily>0&&token.market_cap>0){
+      $("pdMultiple").textContent=num(token.market_cap/(daily*365),2)+"x";
+      $("protocolNotes").innerHTML+=`<li>CoinGecko maps this protocol to ${safe(token.name)} (${safe(token.symbol.toUpperCase())}). The market-cap / annualized-revenue ratio is contextual only, not a token cash-flow valuation.</li>`;
+    } else {
+      $("pdMultiple").textContent="Not mapped";
+      $("protocolNotes").innerHTML+='<li>No direct CoinGecko asset mapping was available for a market-cap comparison.</li>';
+    }
+    if(revenue.methodology) $("protocolNotes").innerHTML+=`<li>Methodology: ${safe(revenue.methodology)}</li>`;
+  } catch(error) {
+    console.warn("Protocol detail metrics unavailable:",error);
+    $("pdFees").textContent="Not reported";
+    $("pdHolderRevenue").textContent="Not reported";
+    $("protocolNotes").innerHTML+=`<li>Detailed revenue metrics could not be loaded: ${safe(error.message)}.</li>`;
   }
+}
+$("protocolTable").addEventListener("click",e=>{const row=e.target.closest("[data-protocol]");if(row)selectProtocol(row.dataset.protocol)});
+["protocolSearch","protocolChain","protocolCategory","protocolSort"].forEach(id=>$ (id).addEventListener(id==="protocolSearch"?"input":"change",renderProtocolTable));
+$("protocolRefresh").addEventListener("click",()=>loadProtocolDirectory(true));
 
-  $("analysisSelect")?.addEventListener("change", e => run(e.target.value));
-})();
+$("walletForm").addEventListener("submit",e=>{e.preventDefault();const address=$("walletAddress").value.trim(),label=$("walletLabel").value.trim();if(!validSolanaAddress(address)){toast("Enter a valid Solana public address");return}if(trackedWallets.some(w=>w.address===address)){toast("This wallet is already tracked");return}trackedWallets.push({address,label,txCount:null,lastActivity:null});saveLocal();renderWallets();$("walletAddress").value="";$("walletLabel").value="";toast("Wallet added");refreshWallet(trackedWallets.length-1)});
+$("walletTable").addEventListener("click",e=>{const b=e.target.closest("[data-wallet]"),r=e.target.closest("[data-wallet-remove]");if(b)refreshWallet(Number(b.dataset.wallet));if(r){trackedWallets.splice(Number(r.dataset.walletRemove),1);saveLocal();renderWallets();$("walletActivity").innerHTML='<span class="muted">Select a tracked wallet to view recent transactions.</span>'}});
+$("coinTable").addEventListener("click",e=>{const b=e.target.closest("[data-watch]");if(b)toggleWatch(b.dataset.watch)});$("watchlistTable").addEventListener("click",e=>{const b=e.target.closest("[data-remove]");if(b)toggleWatch(b.dataset.remove)});
+["searchInput","categoryFilter","sortBy"].forEach(id=>$(id).addEventListener(id==="searchInput"?"input":"change",renderMarkets));
+$("researchCoin").addEventListener("change",e=>research(e.target.value));
+$("researchProtocolMatch").addEventListener("change",e=>{if(e.target.value)loadAssetRevenueComparison(e.target.value)});$("chartCoin").addEventListener("change",()=>loadChart().catch(e=>toast(e.message)));$("chartDays").addEventListener("change",()=>loadChart().catch(e=>toast(e.message)));["showEma","showBands"].forEach(id=>$(id).addEventListener("change",()=>chartPrices.length&&drawChart()));
+$("refreshBtn").addEventListener("click",()=>refresh(true));$("marketRefresh").addEventListener("click",()=>refresh(true));$("menuBtn").addEventListener("click",()=>$("sidebar").classList.toggle("open"));
+document.querySelectorAll(".nav-item").forEach(a=>a.addEventListener("click",()=>{$("pageTitle").textContent=a.textContent.trim();document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n===a));$("sidebar").classList.remove("open")}));
+$("currentDate").textContent=new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"short",day:"numeric"});
+loadLocal();renderWallets();refresh().then(()=>{loadChart().catch(e=>{console.error(e);toast("Chart data could not be loaded")});loadProtocolDirectory(false)});setInterval(()=>refresh(false),120000);
