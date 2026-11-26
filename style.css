@@ -248,3 +248,24 @@ a { color: inherit; text-decoration: none; }
   .stat-card > strong { font-size: 17px; }
   .topbar-actions .button { font-size: 9px; }
 }
+/* Crypto Reality — Fundamentals module styles (uses variables from style.css) */
+.fund-panel { margin-top: 22px; padding: 16px; background: #0d1521; border: 1px solid var(--line); border-radius: 10px; }
+.fund-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.fund-head h4, .fund-sub { font-size: 11px; color: #dce5f1; }
+.fund-sub { margin: 20px 0 10px; }
+.fund-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.fund-card { min-width: 0; padding: 12px; background: var(--panel); border: 1px solid var(--line-soft); border-radius: 8px; }
+.fund-card span { display: block; color: var(--muted); font-size: 9px; }
+.fund-card strong { display: block; margin: 9px 0 4px; font: 600 16px "Space Grotesk", sans-serif; overflow-wrap: anywhere; }
+.fund-card small { display: block; color: var(--muted-2); font-size: 8px; line-height: 1.5; }
+.fund-tag { font-size: 12px !important; }
+.fund-tag.low { color: var(--green); }
+.fund-tag.moderate { color: var(--orange); }
+.fund-tag.high { color: var(--red); }
+.fund-notes { margin: 14px 0 0; padding-left: 16px; display: grid; gap: 7px; }
+.fund-notes li { color: #9aa8bc; font-size: 10px; line-height: 1.6; }
+.fund-note { color: var(--muted-2); font-size: 9px; line-height: 1.7; margin-top: 12px; }
+@media (max-width: 760px) {
+  .fund-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fund-head { align-items: flex-start; flex-direction: column; }
+}
