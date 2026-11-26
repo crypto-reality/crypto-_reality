@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#080d17">
+  <meta name="theme-color" content="#080c12">
   <meta name="description" content="Crypto Reality — independent crypto market research and wallet intelligence.">
-  <title>Crypto Reality — Market Intelligence</title>
+  <title>Crypto Reality v2.4 — Market Intelligence</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -16,8 +16,8 @@
   <aside class="sidebar" id="sidebar">
     <a class="brand" href="#overview"><span class="brand-mark">CR</span><span class="brand-name">CRYPTO <b>REALITY</b><small>INDEPENDENT MARKET INTELLIGENCE</small></span></a>
     <div class="nav-label">WORKSPACE</div>
-    <nav class="navigation">
-      <a class="nav-item active" href="#overview"><span>⌂</span> Overview</a>
+    <nav class="navigation" aria-label="Main sections">
+      <a class="nav-item active" href="#overview" aria-current="page"><span>⌂</span> Overview</a>
       <a class="nav-item" href="#markets"><span>▤</span> Markets</a>
       <a class="nav-item" href="#charts"><span>⌁</span> Technical analysis</a>
       <a class="nav-item" href="#research"><span>◈</span> Valuation research</a>
@@ -27,7 +27,7 @@
     </nav>
     <div class="sidebar-bottom">
       <div class="connection-box"><i id="connectionDot"></i><div><strong>Market data</strong><small id="connection">Connecting…</small></div></div>
-      <div class="sidebar-foot">CRYPTO REALITY <span>v2.1</span></div>
+      <div class="sidebar-foot">CRYPTO REALITY <span>v2.4</span></div>
     </div>
   </aside>
 
@@ -36,8 +36,17 @@
       <div class="top-left"><button class="menu-button" id="menuBtn" aria-label="Open menu">☰</button><div><div class="eyebrow">INDEPENDENT MARKET INTELLIGENCE</div><h1 id="pageTitle">Overview</h1></div></div>
       <div class="top-actions"><span class="live-pill"><i></i> LIVE MARKET DATA</span><button class="btn primary" id="refreshBtn">↻ Refresh</button></div>
     </header>
+    <nav class="mobile-tabs" aria-label="Quick workspace navigation">
+      <a class="mobile-tab active" href="#overview" aria-current="page">Overview</a>
+      <a class="mobile-tab" href="#markets">Markets</a>
+      <a class="mobile-tab" href="#charts">Charts</a>
+      <a class="mobile-tab" href="#research">Valuation</a>
+      <a class="mobile-tab" href="#protocols">Protocols</a>
+      <a class="mobile-tab" href="#wallets">Wallets</a>
+      <a class="mobile-tab" href="#watchlist">Watchlist</a>
+    </nav>
 
-    <section id="overview" class="section">
+    <section id="overview" class="section" aria-labelledby="pageTitle">
       <div class="hero-row"><div><div class="eyebrow">THE MARKET, WITHOUT THE NOISE</div><h2>See the market clearly.</h2><p>Track prices, momentum, token supply and on-chain activity in one place.</p></div><span class="date" id="currentDate">—</span></div>
       <div class="stats-grid">
         <article class="stat-card"><span>Total market cap</span><strong id="marketCap">—</strong><small id="marketCapChange">Loading global data</small></article>
@@ -47,7 +56,7 @@
       </div>
     </section>
 
-    <section id="charts" class="section">
+    <section id="charts" class="section" hidden>
       <div class="section-head"><div><div class="eyebrow">PRICE ACTION</div><h2>Technical analysis</h2><p>Choose an asset and timeframe. Indicators are calculated from historical prices.</p></div>
         <div class="chart-controls"><select id="chartCoin" aria-label="Chart asset"><option value="bitcoin">Bitcoin (BTC)</option></select><select id="chartDays" aria-label="Chart timeframe"><option value="1">24 hours</option><option value="7" selected>7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div>
       </div>
@@ -66,7 +75,7 @@
       </div>
     </section>
 
-    <section id="markets" class="section">
+    <section id="markets" class="section" hidden>
       <div class="section-head"><div><div class="eyebrow">DISCOVER ASSETS</div><h2>Market screener</h2><p>Search, sort and compare a wider list of ranked assets.</p></div><button class="btn secondary" id="marketRefresh">↻ Update market</button></div>
       <div class="toolbar">
         <input id="searchInput" class="search" type="search" placeholder="Search by name or ticker…" aria-label="Search assets">
@@ -78,7 +87,7 @@
       <div class="table-foot"><span id="status">Waiting for data…</span><span>Source: CoinGecko</span></div>
     </section>
 
-    <section id="research" class="section">
+    <section id="research" class="section" hidden>
       <div class="section-head"><div><div class="eyebrow">FUNDAMENTALS & VALUATION</div><h2>Valuation research</h2><p>Review market value, dilution, turnover and protocol revenue where data is available.</p></div></div>
       <div class="panel research-panel">
         <div class="research-toolbar"><label for="researchCoin">SELECT ASSET</label><select id="researchCoin"><option value="">Choose an asset…</option></select></div>
@@ -100,6 +109,16 @@
             <select id="researchProtocolMatch"><option value="">Choose a matching protocol (optional)…</option></select>
             <small>Choose the project manually. Similar names or ticker symbols do not prove that a token captures protocol revenue.</small>
           </div>
+          <div class="valuation-history">
+            <div class="valuation-history-head"><div><h3>Revenue & valuation context</h3><p>Uses reported daily revenue history when the selected protocol provides it.</p></div><span id="rDataQuality" class="tag">Not linked</span></div>
+            <div class="research-grid valuation-history-grid">
+              <div class="research-metric"><span>30-day average revenue</span><strong id="r30dAvg">—</strong><small>Average reported daily revenue</small></div>
+              <div class="research-metric"><span>Annualized revenue run-rate</span><strong id="rAnnualized">—</strong><small>30-day average × 365; not a forecast</small></div>
+              <div class="research-metric"><span>30-day revenue momentum</span><strong id="rTrend">—</strong><small>Compared with the previous 30-day period</small></div>
+              <div class="research-metric"><span>Holder revenue (24h)</span><strong id="rHolderRevenue">—</strong><small>Reported value distributed to token holders</small></div>
+            </div>
+            <p id="rValuationSignal" class="valuation-signal">Link a protocol to review revenue history. No fair-value estimate is made when token value capture cannot be verified.</p>
+          </div>
           <div class="research-notes"><h3>What the numbers suggest</h3><ul id="researchNotes"></ul></div>
           <p class="disclaimer">A high or low market cap alone does not prove that a token is overvalued or undervalued. Protocol revenue is not the same as token-holder income. Missing data is shown as unavailable, never estimated as fact.</p>
         </div>
@@ -107,7 +126,7 @@
     </section>
 
 
-    <section id="protocols" class="section">
+    <section id="protocols" class="section" hidden>
       <div class="section-head">
         <div><div class="eyebrow">MULTI-CHAIN FUNDAMENTALS</div><h2>Protocol research</h2><p>Compare protocol usage, TVL, fees and reported revenue across supported networks.</p></div>
         <button class="btn secondary" id="protocolRefresh">↻ Refresh research</button>
@@ -151,7 +170,7 @@
       </div>
     </section>
 
-    <section id="wallets" class="section">
+    <section id="wallets" class="section" hidden>
       <div class="section-head"><div><div class="eyebrow">ON-CHAIN ACTIVITY</div><h2>Wallet tracker</h2><p>Follow public Solana wallet activity. Wallets are public addresses, not verified identities.</p></div><span class="tag blue">SOLANA BETA</span></div>
       <div class="panel wallet-panel">
         <form id="walletForm" class="wallet-form"><input id="walletAddress" placeholder="Paste a Solana wallet address…" autocomplete="off" aria-label="Solana wallet address"><input id="walletLabel" placeholder="Label (optional)" maxlength="32" aria-label="Wallet label"><button class="btn primary" type="submit">+ Track wallet</button></form>
@@ -161,7 +180,7 @@
       </div>
     </section>
 
-    <section id="watchlist" class="section">
+    <section id="watchlist" class="section" hidden>
       <div class="section-head"><div><div class="eyebrow">SAVED ASSETS</div><h2>Watchlist</h2><p>Your saved assets, stored locally in this browser.</p></div></div>
       <div class="table-wrap"><table class="market-table"><thead><tr><th>ASSET</th><th>PRICE</th><th>24H</th><th>MARKET CAP</th><th>REMOVE</th></tr></thead><tbody id="watchlistTable"><tr><td colspan="5" class="empty">Your watchlist is empty.</td></tr></tbody></table></div>
     </section>
