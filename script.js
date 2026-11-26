@@ -519,3 +519,162 @@ document.querySelectorAll(".nav-item").forEach(link => {
 /* INITIAL LOAD */
 loadDashboard();
 setInterval(() => loadDashboard(), REFRESH_INTERVAL);
+/* Crypto Reality — Fundamentals module
+   Adds: revenue/fees, valuation multiples, verdict, holder concentration.
+   Load AFTER script.js. Uses globals from script.js: $, coins, fetchJSON, money, number, escapeHTML */
+(() => {
+  const LLAMA = "https://api.llama.fi";
+  const cache = {};
+  let token = 0;
+
+  const cached = async (key, url, ttl = 600000) => {
+    const c = cache[key];
+    if (c && Date.now() - c.t < ttl) return c.d;
+    const d = await fetchJSON(url);
+    cache[key] = { t: Date.now(), d };
+    return d;
+  };
+  const safe = p => p.catch(e => { console.warn("Fundamentals:", e.message); return null; });
+
+  /* ---------- Revenue / fees (DefiLlama) ---------- */
+  function findEntry(list, coin, protocol) {
+    if (!list) return null;
+    const name = (protocol?.name || coin.name || "").toLowerCase();
+    return list.find(p => p.gecko_id === coin.id)
+      || (protocol && list.find(p => p.slug === protocol.slug))
+      || list.find(p => String(p.name || "").toLowerCase() === name) || null;
+  }
+
+  async function loadRevenue(coin) {
+    const [protocols, fees, rev] = await Promise.all([
+      safe(cached("protocols", `${LLAMA}/protocols`)),
+      safe(cached("fees", `${LLAMA}/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`)),
+      safe(cached("rev", `${LLAMA}/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue`))
+    ]);
+    const proto = protocols?.find(p => p.gecko_id === coin.id) || null;
+    const f = findEntry(fees?.protocols, coin, proto);
+    const r = findEntry(rev?.protocols, coin, proto);
+    const ann = v => (Number(v) > 0 ? Number(v) / 30 * 365 : null); // 30d -> annualized
+    return {
+      tvl: proto ? Number(proto.tvl) || null : null,
+      category: proto?.category || f?.category || null,
+      annFees: ann(f?.total30d),
+      annRevenue: ann(r?.total30d),
+      found: !!(proto || f || r)
+    };
+  }
+
+  /* ---------- Holder concentration (Ethplorer, ERC-20 only) ---------- */
+  async function loadHolders(coin) {
+    const d = await safe(cached("detail_" + coin.id,
+      `${API}/coins/${coin.id}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false`, 3600000));
+    const addr = d?.platforms?.ethereum;
+    if (!addr) return { supported: false };
+    const h = await safe(cached("holders_" + addr,
+      `https://api.ethplorer.io/getTopTokenHolders/${addr}?apiKey=freekey&limit=100`, 1800000));
+    const list = h?.holders;
+    if (!Array.isArray(list) || !list.length) return { supported: true, failed: true };
+    const sum = n => list.slice(0, n).reduce((s, x) => s + (Number(x.share) || 0), 0);
+    return { supported: true, top1: sum(1), top10: sum(10), top100: sum(100), count: list.length };
+  }
+
+  /* ---------- Valuation verdict ---------- */
+  function verdict(coin, rv) {
+    const cap = Number(coin.market_cap), fdv = Number(coin.fully_diluted_valuation);
+    const ps = rv.annRevenue ? cap / rv.annRevenue : null;
+    const pf = rv.annFees ? cap / rv.annFees : null;
+    const tvlR = rv.tvl ? cap / rv.tvl : null;
+    const fdvPrem = fdv > 0 && cap > 0 ? (fdv / cap - 1) * 100 : null;
+    const notes = [];
+    let points = 0, n = 0;
+
+    if (ps !== null) {
+      n++;
+      if (ps <= 25) { points += 1; notes.push(`Market cap is ${number(ps, 1)}x annualized protocol revenue — in line with mature cash-generating assets.`); }
+      else if (ps <= 100) { notes.push(`Market cap is ${number(ps, 1)}x annualized revenue — a growth premium; the market is pricing future growth.`); }
+      else { points -= 1; notes.push(`Market cap is ${number(ps, 0)}x annualized revenue — very high; the price depends on large future growth.`); }
+    } else if (pf !== null) {
+      n++;
+      if (pf <= 25) { points += 1; notes.push(`Market cap is ${number(pf, 1)}x annualized fees generated.`); }
+      else if (pf <= 100) { notes.push(`Market cap is ${number(pf, 1)}x annualized fees — a growth premium.`); }
+      else { points -= 1; notes.push(`Market cap is ${number(pf, 0)}x annualized fees — high relative to activity.`); }
+    }
+    if (tvlR !== null) {
+      n++;
+      if (tvlR <= 1) { points += 1; notes.push(`Market cap / TVL is ${number(tvlR, 2)} — valued at or below the capital it secures.`); }
+      else if (tvlR > 5) { points -= 1; notes.push(`Market cap / TVL is ${number(tvlR, 1)} — valued far above the capital locked in the protocol.`); }
+    }
+    if (fdvPrem !== null && fdvPrem > 100) { points -= 1; n++; notes.push(`FDV is ${number(fdvPrem, 0)}% above market cap — future unlocks can dilute holders.`); }
+
+    if (!n) return { label: "Not measurable by cash flow", cls: "unknown", notes: ["No revenue, fees or TVL data found. Assets such as BTC, meme coins or pure store-of-value tokens are priced on adoption and narrative, not cash flow — so 'justified or exaggerated' cannot be computed here."], ps, pf, tvlR };
+    if (points >= 1) return { label: "Largely supported by fundamentals", cls: "low", notes, ps, pf, tvlR };
+    if (points === 0) return { label: "Premium valuation", cls: "moderate", notes, ps, pf, tvlR };
+    return { label: "Looks stretched vs. fundamentals", cls: "high", notes, ps, pf, tvlR };
+  }
+
+  /* ---------- Rendering ---------- */
+  const mult = v => (v === null ? "--" : number(v, v < 10 ? 2 : 1) + "x");
+  const pct = v => (v === null || v === undefined ? "--" : number(v, 2) + "%");
+
+  function concentrationHTML(h) {
+    if (!h.supported) return `<p class="fund-note">Holder concentration is available for Ethereum ERC-20 tokens only. This asset has no Ethereum contract in the data source (native chains such as BTC, SOL or BNB need a chain-specific explorer).</p>`;
+    if (h.failed) return `<p class="fund-note">Holder data could not be loaded right now (rate limit or no data). Try again shortly.</p>`;
+    const cls = h.top10 > 70 ? "high" : h.top10 > 40 ? "moderate" : "low";
+    const label = { high: "High concentration", moderate: "Moderate concentration", low: "Distributed" }[cls];
+    return `
+      <div class="fund-grid">
+        <div class="fund-card"><span>Top 1 holder</span><strong>${pct(h.top1)}</strong></div>
+        <div class="fund-card"><span>Top 10 holders</span><strong>${pct(h.top10)}</strong></div>
+        <div class="fund-card"><span>Top ${h.count} holders</span><strong>${pct(h.top100)}</strong></div>
+        <div class="fund-card"><span>Assessment</span><strong class="fund-tag ${cls}">${label}</strong></div>
+      </div>
+      <p class="fund-note">Top holders include exchanges, staking/vesting contracts and burn addresses, so high numbers are not automatically whale risk. Check the largest addresses on Etherscan before drawing conclusions.</p>`;
+  }
+
+  function render(coin, rv, v, h) {
+    const host = ensureHost();
+    host.innerHTML = `
+      <div class="fund-head">
+        <h4>Fundamental valuation check</h4>
+        <span class="risk-status ${v.cls}">${escapeHTML(v.label)}</span>
+      </div>
+      <div class="fund-grid">
+        <div class="fund-card"><span>Annualized revenue</span><strong>${money(rv.annRevenue)}</strong><small>30-day protocol revenue × 12.2</small></div>
+        <div class="fund-card"><span>Annualized fees</span><strong>${money(rv.annFees)}</strong><small>Total fees paid by users</small></div>
+        <div class="fund-card"><span>Market cap / revenue</span><strong>${mult(v.ps)}</strong><small>Price-to-sales style multiple</small></div>
+        <div class="fund-card"><span>Market cap / TVL</span><strong>${mult(v.tvlR)}</strong><small>${rv.tvl ? "TVL " + money(rv.tvl) : "No TVL reported"}</small></div>
+      </div>
+      <ul class="fund-notes">${v.notes.map(n => `<li>${escapeHTML(n)}</li>`).join("")}</ul>
+      <h4 class="fund-sub">Wallet concentration</h4>
+      ${concentrationHTML(h)}
+      <p class="fund-note">Sources: DefiLlama (revenue, fees, TVL), Ethplorer (holders), CoinGecko (prices, supply). Multiples are relative benchmarks, not a fair-value price, and not investment advice.</p>`;
+  }
+
+  function ensureHost() {
+    let el = $("fundamentals");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "fundamentals";
+      el.className = "fund-panel";
+      const anchor = document.querySelector(".data-limit-note");
+      anchor.parentNode.insertBefore(el, anchor);
+    }
+    return el;
+  }
+
+  async function run(id) {
+    const my = ++token;
+    if (!id) return;
+    const coin = coins.find(c => c.id === id);
+    if (!coin) return;
+    ensureHost().innerHTML = `<p class="fund-note">Loading revenue and holder data...</p>`;
+    const [rv, h] = await Promise.all([
+      loadRevenue(coin).catch(() => ({ found: false })),
+      loadHolders(coin).catch(() => ({ supported: true, failed: true }))
+    ]);
+    if (my !== token) return; // user switched asset meanwhile
+    render(coin, rv, verdict(coin, rv), h);
+  }
+
+  $("analysisSelect")?.addEventListener("change", e => run(e.target.value));
+})();
