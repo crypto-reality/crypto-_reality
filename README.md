@@ -1,4 +1,4 @@
-Crypto Reality Pro v2.3
+Crypto Reality Pro v3.0
 A static, browser-based crypto market research dashboard.
 Run it
 Extract the ZIP.
@@ -49,3 +49,24 @@ Added a compact horizontal quick-navigation row on mobile; it stays synchronized
 Improved focus states, reduced-motion support and responsive layouts.
 Existing market, chart, valuation, protocol, wallet and watchlist data logic is retained.
 This release is a front-end presentation update. It does not add new data providers, wallet chains or trading execution.
+v2.5 — Premium interface refinement
+Introduced a warm gold exchange-inspired accent system with deeper neutral surfaces.
+Replaced text-glyph navigation with consistent Lucide outline icons.
+Added a compact market snapshot ribbon and improved information hierarchy.
+Refined cards, tables, controls, focus states, responsive spacing and reduced-motion behavior.
+Preserved the existing browser-only market, chart, valuation, protocol, wallet and watchlist workflows.
+Visual references are inspiration only; this is an independent interface and is not affiliated with Binance.
+v3.0 — Trading terminal upgrade
+Added a chart mode switch between the existing indicator-rich line chart and an OHLC candlestick chart.
+Candlesticks use public historical OHLC data from CoinGecko and Lightweight Charts.
+Added clickable asset names in the market screener to open the asset's valuation research view.
+Added responsive chart controls and a clear fallback message if OHLC data or the chart library is unavailable.
+Existing market refresh, watchlist, protocol research, wallet tracker and indicator calculations are retained.
+Market data depends on third-party public APIs and their availability/rate limits. This is an analytics interface, not a brokerage or order execution system.
+v3.1 — Refinement and performance
+Tuned interaction timing, hover feedback, touch response and typography rendering.
+Reduced expensive blur effects and unnecessary motion to keep scrolling and navigation responsive.
+Debounced market search input to avoid rebuilding the full table on every keystroke.
+Prevented outdated chart responses from replacing the latest selected asset/timeframe.
+Paused automatic market refresh while the browser tab is in the background and refreshed after return when needed.
+No AI-related labels or assistant-facing language are included in the application interface.
