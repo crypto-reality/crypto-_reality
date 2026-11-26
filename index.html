@@ -1,169 +1,174 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#090d16">
-  <meta name="description" content="Crypto Reality — digital asset market intelligence and valuation research.">
-  <title>Crypto Reality | Market Intelligence</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080d17">
+  <meta name="description" content="Crypto Reality — independent crypto market research and wallet intelligence.">
+  <title>Crypto Reality — Market Intelligence</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <aside class="sidebar" id="sidebar">
-    <a class="brand" href="#dashboard" aria-label="Crypto Reality home">
-      <span class="brand-mark">CR</span>
-      <span class="brand-name">CRYPTO <b>REALITY</b><small>MARKET INTELLIGENCE</small></span>
-    </a>
-
+    <a class="brand" href="#overview"><span class="brand-mark">CR</span><span class="brand-name">CRYPTO <b>REALITY</b><small>INDEPENDENT MARKET INTELLIGENCE</small></span></a>
     <div class="nav-label">WORKSPACE</div>
     <nav class="navigation">
-      <a class="nav-item active" href="#dashboard"><span class="nav-icon">⌂</span> Overview</a>
-      <a class="nav-item" href="#markets"><span class="nav-icon">▤</span> Token Screener</a>
-      <a class="nav-item" href="#chart-section"><span class="nav-icon">⌁</span> Market Charts</a>
-      <a class="nav-item" href="#project-analysis"><span class="nav-icon">◈</span> Project Analysis</a>
-      <a class="nav-item" href="#watchlist"><span class="nav-icon">☆</span> Watchlist</a>
+      <a class="nav-item active" href="#overview"><span>⌂</span> Overview</a>
+      <a class="nav-item" href="#markets"><span>▤</span> Markets</a>
+      <a class="nav-item" href="#charts"><span>⌁</span> Technical analysis</a>
+      <a class="nav-item" href="#research"><span>◈</span> Valuation research</a>
+      <a class="nav-item" href="#protocols"><span>⌘</span> Protocol research</a>
+      <a class="nav-item" href="#wallets"><span>◎</span> Wallet tracker</a>
+      <a class="nav-item" href="#watchlist"><span>☆</span> Watchlist</a>
     </nav>
-
-    <div class="nav-label tools-label">DATA</div>
-    <div class="sidebar-note">
-      <span class="note-icon">◎</span>
-      <div><strong>Market coverage</strong><small>Top 100 assets</small></div>
-    </div>
-
     <div class="sidebar-bottom">
-      <div class="connection-box">
-        <span class="connection-dot" id="connectionDot"></span>
-        <div><strong>Data connection</strong><small id="connection">Connecting...</small></div>
-      </div>
-      <a class="nav-item" href="#about"><span class="nav-icon">ⓘ</span> About</a>
-      <div class="sidebar-version">CRYPTO REALITY <span>v1.0</span></div>
+      <div class="connection-box"><i id="connectionDot"></i><div><strong>Market data</strong><small id="connection">Connecting…</small></div></div>
+      <div class="sidebar-foot">CRYPTO REALITY <span>v2.1</span></div>
     </div>
   </aside>
 
-  <main class="main-content">
+  <main class="main">
     <header class="topbar">
-      <div class="topbar-left">
-        <button class="menu-button" id="menuBtn" aria-label="Open menu">☰</button>
-        <div><div class="eyebrow">MARKET INTELLIGENCE</div><h1>Overview</h1></div>
-      </div>
-      <div class="topbar-actions">
-        <div class="data-source"><i></i><span>COINGECKO DATA</span></div>
-        <button class="button button-primary" id="refreshBtn"><span>↻</span> Refresh data</button>
-      </div>
+      <div class="top-left"><button class="menu-button" id="menuBtn" aria-label="Open menu">☰</button><div><div class="eyebrow">INDEPENDENT MARKET INTELLIGENCE</div><h1 id="pageTitle">Overview</h1></div></div>
+      <div class="top-actions"><span class="live-pill"><i></i> LIVE MARKET DATA</span><button class="btn primary" id="refreshBtn">↻ Refresh</button></div>
     </header>
 
-    <section id="dashboard" class="dashboard-section">
-      <div class="welcome-row">
-        <div><div class="eyebrow">GLOBAL CRYPTO MARKET</div><h2>Market overview</h2><p>Track market conditions, asset performance and valuation signals.</p></div>
-        <span class="date-display" id="currentDate">--</span>
-      </div>
-
+    <section id="overview" class="section">
+      <div class="hero-row"><div><div class="eyebrow">THE MARKET, WITHOUT THE NOISE</div><h2>See the market clearly.</h2><p>Track prices, momentum, token supply and on-chain activity in one place.</p></div><span class="date" id="currentDate">—</span></div>
       <div class="stats-grid">
-        <article class="stat-card">
-          <div class="stat-heading"><span>Total market cap</span><b class="stat-symbol">◈</b></div>
-          <strong id="marketCap">--</strong><small id="marketCapChange">--</small>
-        </article>
-        <article class="stat-card">
-          <div class="stat-heading"><span>24h trading volume</span><b class="stat-symbol">⇄</b></div>
-          <strong id="volume">--</strong><small>Across the tracked market</small>
-        </article>
-        <article class="stat-card">
-          <div class="stat-heading"><span>BTC dominance</span><b class="stat-symbol">₿</b></div>
-          <strong id="btcDominance">--</strong><small>Bitcoin share of total market cap</small>
-        </article>
-        <article class="stat-card">
-          <div class="stat-heading"><span>Tracked assets</span><b class="stat-symbol">▦</b></div>
-          <strong id="coinCount">--</strong><small>Assets loaded in the screener</small>
-        </article>
+        <article class="stat-card"><span>Total market cap</span><strong id="marketCap">—</strong><small id="marketCapChange">Loading global data</small></article>
+        <article class="stat-card"><span>24h trading volume</span><strong id="volume">—</strong><small>Reported market-wide volume</small></article>
+        <article class="stat-card"><span>Bitcoin dominance</span><strong id="btcDominance">—</strong><small>Share of total market cap</small></article>
+        <article class="stat-card"><span>Assets loaded</span><strong id="coinCount">—</strong><small>Ranked by market capitalization</small></article>
       </div>
     </section>
 
-    <section class="content-section" id="chart-section">
-      <div class="section-heading">
-        <div><div class="eyebrow">PRICE PERFORMANCE</div><h2>Bitcoin market chart</h2><p>Seven-day price history for BTC against the US dollar.</p></div>
-        <div class="btc-summary"><strong id="btcPrice">--</strong><span id="btcChange">--</span></div>
+    <section id="charts" class="section">
+      <div class="section-head"><div><div class="eyebrow">PRICE ACTION</div><h2>Technical analysis</h2><p>Choose an asset and timeframe. Indicators are calculated from historical prices.</p></div>
+        <div class="chart-controls"><select id="chartCoin" aria-label="Chart asset"><option value="bitcoin">Bitcoin (BTC)</option></select><select id="chartDays" aria-label="Chart timeframe"><option value="1">24 hours</option><option value="7" selected>7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div>
       </div>
       <div class="panel chart-panel">
-        <div class="panel-heading"><div><strong>BTC / USD</strong><small>Historical price</small></div><span class="period-label">7 DAYS</span></div>
-        <div class="chart-container"><canvas id="btcChart" aria-label="Bitcoin price chart"></canvas></div>
+        <div class="chart-top"><div><strong id="chartTitle">BTC / USD</strong><small id="chartSubtitle">Price with EMA 20 and Bollinger Bands</small></div><div class="indicator-toggles">
+          <label><input type="checkbox" id="showEma" checked> EMA 20</label><label><input type="checkbox" id="showBands"> Bollinger</label>
+        </div></div>
+        <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+        <div class="indicator-grid">
+          <div class="indicator-card"><span>RSI (14)</span><strong id="rsiValue">—</strong><small id="rsiLabel">Momentum</small></div>
+          <div class="indicator-card"><span>MACD (12, 26, 9)</span><strong id="macdValue">—</strong><small id="macdLabel">Trend momentum</small></div>
+          <div class="indicator-card"><span>EMA (20)</span><strong id="emaValue">—</strong><small>Short-term trend</small></div>
+          <div class="indicator-card"><span>20-period volatility</span><strong id="volValue">—</strong><small>Historical price variation</small></div>
+        </div>
+        <p class="disclaimer">Indicators describe historical price behaviour. They are not buy or sell signals.</p>
       </div>
     </section>
 
-    <section class="content-section" id="markets">
-      <div class="section-heading">
-        <div><div class="eyebrow">ASSET DISCOVERY</div><h2>Token screener</h2><p>Compare market prices, capitalization and daily trading activity.</p></div>
-        <button class="button button-secondary" id="refreshMarket">↻ Update</button>
+    <section id="markets" class="section">
+      <div class="section-head"><div><div class="eyebrow">DISCOVER ASSETS</div><h2>Market screener</h2><p>Search, sort and compare a wider list of ranked assets.</p></div><button class="btn secondary" id="marketRefresh">↻ Update market</button></div>
+      <div class="toolbar">
+        <input id="searchInput" class="search" type="search" placeholder="Search by name or ticker…" aria-label="Search assets">
+        <select id="categoryFilter" aria-label="Market category"><option value="all">All assets</option><option value="large">Large cap · Top 20</option><option value="mid">Mid cap · 21–100</option><option value="small">Smaller cap · 101+</option><option value="gainers">Top gainers</option><option value="losers">Top losers</option></select>
+        <select id="sortBy" aria-label="Sort assets"><option value="rank">Sort: Market rank</option><option value="market_cap_desc">Market cap: High to low</option><option value="market_cap_asc">Market cap: Low to high</option><option value="volume_desc">Volume: High to low</option><option value="change_desc">24h: Best performers</option><option value="change_asc">24h: Worst performers</option></select>
+        <span id="marketCount">— assets</span>
       </div>
-      <div class="market-toolbar">
-        <div class="search-wrap"><span>⌕</span><input id="searchInput" type="search" placeholder="Search assets by name or ticker..." autocomplete="off" aria-label="Search assets"></div>
-        <span id="marketCount">-- assets</span>
-      </div>
-      <div class="table-wrap">
-        <table class="market-table">
-          <thead><tr><th>RANK</th><th>ASSET</th><th>PRICE</th><th>24H CHANGE</th><th>MARKET CAP</th><th>VOLUME (24H)</th><th>WATCH</th></tr></thead>
-          <tbody id="coinTable"><tr><td colspan="7" class="table-message">Loading market data...</td></tr></tbody>
-        </table>
-      </div>
-      <div class="table-footer"><span id="status">Waiting for market data...</span><span>Source: CoinGecko</span></div>
+      <div class="table-wrap"><table class="market-table"><thead><tr><th>#</th><th>ASSET</th><th>PRICE</th><th>24H</th><th>MARKET CAP</th><th>VOLUME</th><th>WATCH</th></tr></thead><tbody id="coinTable"><tr><td colspan="7" class="empty">Loading market data…</td></tr></tbody></table></div>
+      <div class="table-foot"><span id="status">Waiting for data…</span><span>Source: CoinGecko</span></div>
     </section>
 
-    <section class="content-section" id="project-analysis">
-      <div class="section-heading">
-        <div><div class="eyebrow">VALUATION RESEARCH</div><h2>Project analysis</h2><p>Review supply metrics and market-based risk signals for a selected asset.</p></div>
-      </div>
-      <div class="panel analysis-panel">
-        <div class="analysis-toolbar"><label for="analysisSelect">SELECT ASSET</label><select id="analysisSelect" aria-label="Select an asset"><option value="">Choose an asset...</option></select></div>
-        <div id="analysisEmpty" class="analysis-empty"><div class="empty-mark">◈</div><strong>Select an asset to start the analysis.</strong><span>Available metrics depend on the data reported by the market source.</span></div>
-        <div id="analysisContent" class="analysis-content" hidden>
-          <div class="analysis-title-row">
-            <div class="analysis-asset"><img id="analysisImage" src="" alt=""><div><h3 id="analysisName">--</h3><span id="analysisSymbol">--</span></div></div>
-            <div class="risk-status" id="valuationStatus">--</div>
+    <section id="research" class="section">
+      <div class="section-head"><div><div class="eyebrow">FUNDAMENTALS & VALUATION</div><h2>Valuation research</h2><p>Review market value, dilution, turnover and protocol revenue where data is available.</p></div></div>
+      <div class="panel research-panel">
+        <div class="research-toolbar"><label for="researchCoin">SELECT ASSET</label><select id="researchCoin"><option value="">Choose an asset…</option></select></div>
+        <div id="researchEmpty" class="empty-state"><b>Choose an asset to review its metrics.</b><span>Revenue coverage is limited to protocols with a matching data source.</span></div>
+        <div id="researchContent" hidden>
+          <div class="asset-heading"><div class="coin-info"><img id="researchImage" alt=""><div><strong id="researchName">—</strong><small id="researchSymbol">—</small></div></div><span id="valuationTag" class="tag">—</span></div>
+          <div class="research-grid">
+            <div class="research-metric"><span>Market capitalization</span><strong id="rCap">—</strong><small>Circulating supply × market price</small></div>
+            <div class="research-metric"><span>Fully diluted valuation</span><strong id="rFdv">—</strong><small>Estimated value at full stated supply</small></div>
+            <div class="research-metric"><span>FDV / market cap</span><strong id="rFdvRatio">—</strong><small>Potential dilution indicator</small></div>
+            <div class="research-metric"><span>24h volume / market cap</span><strong id="rTurnover">—</strong><small>Turnover, not order-book liquidity</small></div>
+            <div class="research-metric"><span>Circulating supply</span><strong id="rCirculating">—</strong><small>Currently reported in circulation</small></div>
+            <div class="research-metric"><span>Supply unlocked</span><strong id="rSupplyShare">—</strong><small>Compared with total or max supply</small></div>
+            <div class="research-metric"><span>Protocol revenue</span><strong id="rRevenue">Not available</strong><small id="rRevenueNote">No verified revenue match</small></div>
+            <div class="research-metric"><span>Revenue multiple</span><strong id="rMultiple">—</strong><small>Market cap / annualized revenue</small></div>
           </div>
-          <div class="analysis-score-grid">
-            <article class="score-card"><span class="metric-label">Market snapshot score</span><strong id="projectScore">--</strong><small>Screening score based on reported metrics</small></article>
-            <article class="score-card"><span class="metric-label">Market capitalization</span><strong id="analysisMarketCap">--</strong><small>Current circulating market value</small></article>
-            <article class="score-card"><span class="metric-label">FDV premium</span><strong id="fdvRatio">--</strong><small>Fully diluted valuation vs. market cap</small></article>
-            <article class="score-card"><span class="metric-label">Volume / market cap</span><strong id="volumeRatio">--</strong><small>24h turnover ratio, not exchange liquidity</small></article>
+          <div class="research-linker">
+            <label for="researchProtocolMatch">LINK A PROTOCOL FOR REVENUE COMPARISON</label>
+            <select id="researchProtocolMatch"><option value="">Choose a matching protocol (optional)…</option></select>
+            <small>Choose the project manually. Similar names or ticker symbols do not prove that a token captures protocol revenue.</small>
           </div>
-          <div class="analysis-details">
-            <div class="detail-column"><h4>Token supply</h4>
-              <div class="detail-row"><span>Circulating supply</span><strong id="circulatingSupply">--</strong></div>
-              <div class="detail-row"><span>Total supply</span><strong id="totalSupply">--</strong></div>
-              <div class="detail-row"><span>Maximum supply</span><strong id="maxSupply">--</strong></div>
-              <div class="detail-row"><span>Fully diluted valuation</span><strong id="fullyDilutedValue">--</strong></div>
-            </div>
-            <div class="detail-column"><h4>Market signals</h4>
-              <div class="detail-row"><span>24h price change</span><strong id="analysisChange">--</strong></div>
-              <div class="detail-row"><span>24h trading volume</span><strong id="analysisVolume">--</strong></div>
-              <div class="detail-row"><span>FDV premium</span><strong id="fdvPremium">--</strong></div>
-              <div class="detail-row"><span>Market rank</span><strong id="analysisRank">--</strong></div>
-            </div>
-          </div>
-          <div class="analysis-notes"><h4>Assessment notes</h4><ul id="assessmentList"></ul></div>
-          <p class="data-limit-note">This is a market-data screening tool, not an estimate of intrinsic or fair value. Holder concentration, project revenue, active users, unlock schedules and on-chain liquidity are not included unless a data source supplies them.</p>
+          <div class="research-notes"><h3>What the numbers suggest</h3><ul id="researchNotes"></ul></div>
+          <p class="disclaimer">A high or low market cap alone does not prove that a token is overvalued or undervalued. Protocol revenue is not the same as token-holder income. Missing data is shown as unavailable, never estimated as fact.</p>
         </div>
       </div>
     </section>
 
-    <section class="content-section" id="watchlist">
-      <div class="section-heading"><div><div class="eyebrow">SAVED ASSETS</div><h2>Watchlist</h2><p>Keep selected assets close and follow their market performance.</p></div></div>
-      <div class="panel table-wrap"><table class="market-table">
-        <thead><tr><th>ASSET</th><th>PRICE</th><th>24H CHANGE</th><th>MARKET CAP</th><th>REMOVE</th></tr></thead>
-        <tbody id="watchlistTable"><tr><td colspan="5" class="table-message">Your watchlist is empty.</td></tr></tbody>
-      </table></div>
-    </section>
-<!-- داخل <head> بعد style.css -->
-<link rel="stylesheet" href="fundamentals.css">
 
-<!-- قبل </body> بعد script.js -->
-<script src="fundamentals.js"></script>
-    <footer id="about" class="footer"><strong>CRYPTO REALITY</strong><span>Market data provided by CoinGecko.</span><p>Information is for research purposes only. Market indicators do not establish a project's intrinsic value and are not investment advice.</p></footer>
+    <section id="protocols" class="section">
+      <div class="section-head">
+        <div><div class="eyebrow">MULTI-CHAIN FUNDAMENTALS</div><h2>Protocol research</h2><p>Compare protocol usage, TVL, fees and reported revenue across supported networks.</p></div>
+        <button class="btn secondary" id="protocolRefresh">↻ Refresh research</button>
+      </div>
+      <div class="protocol-summary-grid">
+        <article class="stat-card"><span>Protocols indexed</span><strong id="protocolCount">—</strong><small>Protocols returned by the data source</small></article>
+        <article class="stat-card"><span>Networks covered</span><strong id="chainCount">—</strong><small>Networks represented in protocol data</small></article>
+        <article class="stat-card"><span>Reported 24h revenue</span><strong id="protocolRevenueTotal">—</strong><small>Across protocols with reported data</small></article>
+        <article class="stat-card"><span>Data provider</span><strong class="provider-name">DefiLlama</strong><small>TVL, fees and revenue datasets</small></article>
+      </div>
+      <div class="panel protocol-panel">
+        <div class="protocol-toolbar">
+          <input id="protocolSearch" class="search" type="search" placeholder="Search protocols, symbols or categories…" aria-label="Search protocols">
+          <select id="protocolChain" aria-label="Filter by network"><option value="all">All networks</option></select>
+          <select id="protocolCategory" aria-label="Filter by category"><option value="all">All categories</option></select>
+          <select id="protocolSort" aria-label="Sort protocols"><option value="tvl">Sort: TVL high to low</option><option value="revenue">Revenue: High to low</option><option value="name">Name: A to Z</option></select>
+        </div>
+        <div class="table-wrap">
+          <table class="market-table protocol-table">
+            <thead><tr><th>PROTOCOL</th><th>CATEGORY</th><th>NETWORKS</th><th>TVL</th><th>REVENUE (24H)</th><th>1D CHANGE</th></tr></thead>
+            <tbody id="protocolTable"><tr><td colspan="6" class="empty">Loading protocol data…</td></tr></tbody>
+          </table>
+        </div>
+        <div class="table-foot"><span id="protocolStatus">Waiting for protocol data…</span><span>Source: DefiLlama</span></div>
+      </div>
+      <div class="panel protocol-detail-panel">
+        <div class="detail-head"><div><div class="eyebrow">PROTOCOL DEEP DIVE</div><h3 id="protocolDetailName">Select a protocol</h3><p id="protocolDetailDescription">Choose a row above to review reported financial activity.</p></div><span id="protocolDetailCategory" class="tag">—</span></div>
+        <div class="research-grid protocol-metrics">
+          <div class="research-metric"><span>TVL</span><strong id="pdTvl">—</strong><small>Total value locked</small></div>
+          <div class="research-metric"><span>Fees (24h)</span><strong id="pdFees">—</strong><small>Fees paid by users</small></div>
+          <div class="research-metric"><span>Protocol revenue (24h)</span><strong id="pdRevenue">—</strong><small>Revenue retained by the protocol</small></div>
+          <div class="research-metric"><span>Holders revenue (24h)</span><strong id="pdHolderRevenue">—</strong><small>Reported value distributed to token holders</small></div>
+          <div class="research-metric"><span>Annualized revenue</span><strong id="pdAnnualRevenue">—</strong><small>24h revenue × 365; simple run-rate only</small></div>
+          <div class="research-metric"><span>Market cap / annualized revenue</span><strong id="pdMultiple">—</strong><small>Contextual multiple where token mapping exists</small></div>
+        </div>
+        <div class="detail-columns">
+          <div><h4>Network coverage</h4><div id="protocolChains" class="chain-pills"><span class="muted">No protocol selected.</span></div></div>
+          <div><h4>Research notes</h4><ul id="protocolNotes" class="research-note-list"><li>Fees, protocol revenue and holder revenue are different measures.</li></ul></div>
+        </div>
+        <p class="disclaimer">Revenue figures depend on the provider's methodology and reported coverage. Fees are not the same as protocol revenue, and protocol revenue is not automatically paid to token holders. Annualized figures extrapolate one day and are not forecasts.</p>
+      </div>
+    </section>
+
+    <section id="wallets" class="section">
+      <div class="section-head"><div><div class="eyebrow">ON-CHAIN ACTIVITY</div><h2>Wallet tracker</h2><p>Follow public Solana wallet activity. Wallets are public addresses, not verified identities.</p></div><span class="tag blue">SOLANA BETA</span></div>
+      <div class="panel wallet-panel">
+        <form id="walletForm" class="wallet-form"><input id="walletAddress" placeholder="Paste a Solana wallet address…" autocomplete="off" aria-label="Solana wallet address"><input id="walletLabel" placeholder="Label (optional)" maxlength="32" aria-label="Wallet label"><button class="btn primary" type="submit">+ Track wallet</button></form>
+        <div class="wallet-info">This beta uses the public Solana RPC endpoint. For reliable tracking at scale, connect your own RPC/indexer endpoint in <code>script.js</code>. Never enter a seed phrase or private key.</div>
+        <div class="table-wrap wallet-table-wrap"><table class="market-table"><thead><tr><th>WALLET</th><th>LABEL</th><th>LAST ACTIVITY</th><th>RECENT TXS</th><th>TRACKING</th></tr></thead><tbody id="walletTable"><tr><td colspan="5" class="empty">No wallets tracked yet.</td></tr></tbody></table></div>
+        <div id="walletActivity" class="activity-list"><span class="muted">Select a tracked wallet to view recent transactions.</span></div>
+      </div>
+    </section>
+
+    <section id="watchlist" class="section">
+      <div class="section-head"><div><div class="eyebrow">SAVED ASSETS</div><h2>Watchlist</h2><p>Your saved assets, stored locally in this browser.</p></div></div>
+      <div class="table-wrap"><table class="market-table"><thead><tr><th>ASSET</th><th>PRICE</th><th>24H</th><th>MARKET CAP</th><th>REMOVE</th></tr></thead><tbody id="watchlistTable"><tr><td colspan="5" class="empty">Your watchlist is empty.</td></tr></tbody></table></div>
+    </section>
+
+    <footer class="footer"><strong>CRYPTO REALITY</strong><span>Market data: CoinGecko · Protocol data: DefiLlama · Wallet data: Solana RPC</span><p>Research and educational information only. No metric on this site is a guarantee of future performance or investment advice.</p></footer>
   </main>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="script.js"></script>
 </body>
 </html>
