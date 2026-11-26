@@ -1,4 +1,4 @@
-Crypto Reality Pro
+Crypto Reality Pro v2.3
 A static, browser-based crypto market research dashboard.
 Run it
 Extract the ZIP.
@@ -6,6 +6,7 @@ Open the folder in VS Code.
 Run index.html with the Live Server extension, or host the folder on any static web host.
 The browser needs internet access for CoinGecko, Chart.js, Google Fonts and Solana RPC.
 Included
+Separate workspace tabs: each sidebar item opens its own page view instead of stacking all sections vertically. Active tab, URL hash navigation and browser back/forward are supported.
 Global market overview and a 250-asset market screener.
 Search, market-cap categories, gainers/losers and sorting.
 Interactive historical price chart with EMA 20, RSI 14, MACD and Bollinger Bands.
@@ -33,3 +34,18 @@ Market cap / annualized protocol revenue is shown only when a direct CoinGecko p
 Annualized revenue is a simple 24-hour run-rate multiplied by 365, not a forecast.
 Multi-chain filters show the chains reported for each protocol; they do not imply that every token is deployed on every listed chain.
 This remains a browser-only research build. A production service should proxy/cache third-party APIs, monitor rate limits, preserve source timestamps and validate token-to-protocol mappings.
+v2.2 — Revenue history & valuation context
+The Valuation Research panel now adds:
+30-day average daily protocol revenue, based on the provider's returned daily history.
+A simple annualized run-rate based on that 30-day average.
+Revenue momentum versus the preceding 30-day period when at least 60 observations are available.
+Reported 24-hour holder revenue, when the source provides it.
+A transparent data-availability label and explanatory context instead of an invented fair-value score.
+Important: the revenue multiple is a contextual comparison, not a fair-value estimate or investment signal. A manually linked protocol does not prove that its token captures protocol revenue. Missing data is shown as unavailable rather than treated as zero.
+v2.4 visual refresh
+Refined dark trading-terminal visual system with clearer contrast, spacing, typography and data cards.
+More consistent table, chart, research and protocol panels inspired by modern exchange and on-chain analytics workflows.
+Added a compact horizontal quick-navigation row on mobile; it stays synchronized with the main workspace tabs.
+Improved focus states, reduced-motion support and responsive layouts.
+Existing market, chart, valuation, protocol, wallet and watchlist data logic is retained.
+This release is a front-end presentation update. It does not add new data providers, wallet chains or trading execution.
